@@ -1,0 +1,8 @@
+name: 'Replay git tags from another repository'
+description: 'Find the lowest git tag in another repository not yet found in this repository and replay it'
+author: 'ContainerCraft'
+inputs: {}
+outputs: {}
+runs:
+  using: 'node24'
+  main: 'dist/setup/index.js'

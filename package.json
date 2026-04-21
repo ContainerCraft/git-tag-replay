@@ -1,0 +1,50 @@
+{
+  "name": "git-tag-replay",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Replay git tags from another repository",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "ncc build -o dist src/git-tag-replay.ts",
+    "format": "prettier --no-error-on-unmatched-pattern --config ./.prettierrc.js --write \"**/*.{ts,yml,yaml}\"",
+    "format-check": "prettier --no-error-on-unmatched-pattern --config ./.prettierrc.js --check \"**/*.{ts,yml,yaml}\"",
+    "lint": "eslint --config ./.eslintrc.js \"**/*.ts\"",
+    "lint:fix": "eslint --config ./.eslintrc.js \"**/*.ts\" --fix",
+    "test": "jest --coverage",
+    "pre-checkin": "npm run format && npm run lint:fix && npm run build && npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ContainerCraft/git-tag-replay.git"
+  },
+  "keywords": [
+    "actions",
+    "git",
+    "tags"
+  ],
+  "author": "ContainerCraft",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@actions/core": "^2.0.3",
+    "@actions/github": "^8.0.1",
+    "semver": "^7.7.4"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.12.2",
+    "@types/semver": "^7.7.1",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@vercel/ncc": "^0.38.4",
+    "eslint": "^8.0.0",
+    "eslint-config-prettier": "^8.6.0",
+    "eslint-plugin-jest": "^28.0.0",
+    "eslint-plugin-node": "^11.1.0",
+    "prettier": "^3.8.3",
+    "ts-jest": "^29.4.9",
+    "typescript": "^5.4.2"
+  }
+}

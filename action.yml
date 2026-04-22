@@ -1,7 +1,25 @@
 name: 'Replay git tags from another repository'
 description: 'Find the lowest git tag in another repository not yet found in this repository and replay it'
 author: 'ContainerCraft'
-inputs: {}
+inputs:
+  upstream_owner:
+    description: 'Owner (user or organization) of the upstream GitHub repository'
+    required: true
+  upstream_repository:
+    description: 'Name of the upstream GitHub repository'
+    required: true
+  upstream_token:
+    description: 'GitHub token (PAT or GITHUB_TOKEN) used to authenticate against the upstream repository. Mutually exclusive with GitHub App authentication.'
+    required: false
+  upstream_app_id:
+    description: 'GitHub App ID used to authenticate against the upstream repository. Requires upstream_private_key and upstream_installation_id.'
+    required: false
+  upstream_private_key:
+    description: 'Private key of the GitHub App used to authenticate. Requires upstream_app_id and upstream_installation_id.'
+    required: false
+  upstream_installation_id:
+    description: 'Installation ID of the GitHub App used to authenticate. Requires upstream_app_id and upstream_private_key.'
+    required: false
 outputs: {}
 runs:
   using: 'node24'

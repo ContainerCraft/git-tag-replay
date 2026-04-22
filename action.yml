@@ -20,7 +20,9 @@ inputs:
   upstream_installation_id:
     description: 'Installation ID of the GitHub App used to authenticate. Requires upstream_app_id and upstream_private_key.'
     required: false
-outputs: {}
+outputs:
+  nextTag:
+    description: 'Name of the lowest SemVer (MAJOR.MINOR.BUILD) tag present upstream but missing locally, or an empty string when there is no missing tag to replay.'
 runs:
   using: 'node24'
   main: 'dist/setup/index.js'

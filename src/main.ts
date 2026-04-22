@@ -1,4 +1,6 @@
 import * as core from '@actions/core';
+import {compare} from 'semver';
+import {fetchLocalSemverTags, fetchSemverTags} from './tags';
 
 export type AuthConfig =
   | {type: 'token'; token: string}
@@ -9,10 +11,43 @@ export type AuthConfig =
       installationId: string;
     };
 
-export interface ActionConfig {
+export interface UpstreamConfig {
   owner: string;
   repository: string;
   auth: AuthConfig;
+}
+
+export interface LocalConfig {
+  owner: string;
+  repository: string;
+  token: string;
+}
+
+export interface ActionConfig {
+  upstream: UpstreamConfig;
+  local: LocalConfig;
+}
+
+export function getLocalConfig(): LocalConfig {
+  const repoSlug = process.env.GITHUB_REPOSITORY;
+  if (!repoSlug) {
+    throw new Error(
+      'Environment variable "GITHUB_REPOSITORY" is required to identify the current repository.'
+    );
+  }
+  const [owner, repository] = repoSlug.split('/');
+  if (!owner || !repository) {
+    throw new Error(
+      `Environment variable "GITHUB_REPOSITORY" must be in the form "owner/repo", got "${repoSlug}".`
+    );
+  }
+  const token = process.env.GITHUB_TOKEN || core.getInput('github_token');
+  if (!token) {
+    throw new Error(
+      'A GitHub token is required to read tags from the current repository. Set the "GITHUB_TOKEN" environment variable (e.g. `env: GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}`).'
+    );
+  }
+  return {owner, repository, token};
 }
 
 export function getConfig(): ActionConfig {
@@ -64,19 +99,59 @@ export function getConfig(): ActionConfig {
         installationId
       };
 
-  return {owner, repository, auth};
+  return {upstream: {owner, repository, auth}, local: getLocalConfig()};
 }
 
 export async function run() {
   try {
     const config = getConfig();
+    const {upstream, local} = config;
     core.setSecret(
-      config.auth.type === 'token' ? config.auth.token : config.auth.privateKey
+      upstream.auth.type === 'token'
+        ? upstream.auth.token
+        : upstream.auth.privateKey
     );
+    core.setSecret(local.token);
     core.info('Git Tag Replay Action called');
     core.info(
-      `Upstream repository: ${config.owner}/${config.repository} (auth: ${config.auth.type})`
+      `Upstream repository: ${upstream.owner}/${upstream.repository} (auth: ${upstream.auth.type})`
     );
+    const tags = await fetchSemverTags(upstream);
+    core.info(
+      `Found ${tags.length} SemVer tag(s) in ${upstream.owner}/${upstream.repository}`
+    );
+    for (const tag of tags) {
+      core.info(`  ${tag.name} (${tag.version}) -> ${tag.sha}`);
+    }
+    core.info(
+      `Local repository: ${local.owner}/${local.repository}`
+    );
+    const localTags = await fetchLocalSemverTags(local);
+    core.info(
+      `Found ${localTags.length} SemVer tag(s) in ${local.owner}/${local.repository}`
+    );
+    for (const tag of localTags) {
+      core.info(`  ${tag.name} (${tag.version}) -> ${tag.sha}`);
+    }
+
+    const localTagNames = new Set(localTags.map(tag => tag.name));
+    const missingTags = tags.filter(tag => !localTagNames.has(tag.name));
+    core.info(
+      `Found ${missingTags.length} upstream SemVer tag(s) missing locally`
+    );
+    const sortedMissing = [...missingTags].sort((a, b) =>
+      compare(a.version, b.version)
+    );
+    const nextTag = sortedMissing[0];
+    if (nextTag) {
+      core.info(
+        `Lowest missing SemVer tag: ${nextTag.name} (${nextTag.version}) -> ${nextTag.sha}`
+      );
+      core.setOutput('nextTag', nextTag.name);
+    } else {
+      core.info('No missing upstream SemVer tags to replay');
+      core.setOutput('nextTag', '');
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     core.setFailed(message);

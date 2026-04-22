@@ -1,5 +1,14 @@
 import * as core from '@actions/core';
-import {getConfig, run} from '../src/main';
+import {getConfig, getLocalConfig, run} from '../src/main';
+import * as tags from '../src/tags';
+
+jest.mock('../src/tags', () => ({
+  fetchSemverTags: jest.fn(),
+  fetchLocalSemverTags: jest.fn(),
+  isSemverTag: jest.fn(),
+  createOctokit: jest.fn(),
+  createLocalOctokit: jest.fn()
+}));
 
 const INPUT_KEYS = [
   'INPUT_UPSTREAM_OWNER',
@@ -21,9 +30,28 @@ function setInputs(inputs: Record<string, string | undefined>): void {
   }
 }
 
+function setLocalEnv(
+  env: {repo?: string | null; token?: string | null} = {}
+): void {
+  if (env.repo === null) {
+    delete process.env.GITHUB_REPOSITORY;
+  } else {
+    process.env.GITHUB_REPOSITORY = env.repo ?? 'local-owner/local-repo';
+  }
+  if (env.token === null) {
+    delete process.env.GITHUB_TOKEN;
+  } else {
+    process.env.GITHUB_TOKEN = env.token ?? 'local-token';
+  }
+}
+
 describe('getConfig', () => {
+  beforeEach(() => {
+    setLocalEnv();
+  });
   afterEach(() => {
     setInputs({});
+    setLocalEnv({repo: null, token: null});
   });
 
   it('returns token-based auth when only token is provided', () => {
@@ -35,9 +63,9 @@ describe('getConfig', () => {
 
     const config = getConfig();
 
-    expect(config.owner).toBe('octocat');
-    expect(config.repository).toBe('hello-world');
-    expect(config.auth).toEqual({type: 'token', token: 'ghp_secret'});
+    expect(config.upstream.owner).toBe('octocat');
+    expect(config.upstream.repository).toBe('hello-world');
+    expect(config.upstream.auth).toEqual({type: 'token', token: 'ghp_secret'});
   });
 
   it('returns app-based auth when all app fields are provided', () => {
@@ -51,7 +79,7 @@ describe('getConfig', () => {
 
     const config = getConfig();
 
-    expect(config.auth).toEqual({
+    expect(config.upstream.auth).toEqual({
       type: 'app',
       appId: '12345',
       privateKey: '-----BEGIN KEY-----',
@@ -103,14 +131,23 @@ describe('run', () => {
   let setSecretSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    setLocalEnv();
     infoSpy = jest.spyOn(core, 'info').mockImplementation(() => {});
     setFailedSpy = jest.spyOn(core, 'setFailed').mockImplementation(() => {});
     setSecretSpy = jest.spyOn(core, 'setSecret').mockImplementation(() => {});
+    jest.spyOn(core, 'setOutput').mockImplementation(() => {});
+    (tags.fetchSemverTags as jest.Mock).mockReset();
+    (tags.fetchSemverTags as jest.Mock).mockResolvedValue([
+      {name: '1.0.0', version: '1.0.0', sha: 'aaa'}
+    ]);
+    (tags.fetchLocalSemverTags as jest.Mock).mockReset();
+    (tags.fetchLocalSemverTags as jest.Mock).mockResolvedValue([]);
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
     setInputs({});
+    setLocalEnv({repo: null, token: null});
   });
 
   it('logs the expected info message with token auth', async () => {
@@ -159,6 +196,49 @@ describe('run', () => {
     );
   });
 
+  it('fetches SemVer tags from the upstream repository and logs them', async () => {
+    (tags.fetchSemverTags as jest.Mock).mockResolvedValue([
+      {name: '1.0.0', version: '1.0.0', sha: 'aaa'},
+      {name: 'v2.1.3', version: '2.1.3', sha: 'bbb'}
+    ]);
+    setInputs({
+      upstream_owner: 'octocat',
+      upstream_repository: 'hello-world',
+      upstream_token: 'ghp_secret'
+    });
+
+    await run();
+
+    expect(setFailedSpy).not.toHaveBeenCalled();
+    expect(tags.fetchSemverTags).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: 'octocat',
+        repository: 'hello-world',
+        auth: {type: 'token', token: 'ghp_secret'}
+      })
+    );
+    expect(infoSpy).toHaveBeenCalledWith(
+      'Found 2 SemVer tag(s) in octocat/hello-world'
+    );
+    expect(infoSpy).toHaveBeenCalledWith('  1.0.0 (1.0.0) -> aaa');
+    expect(infoSpy).toHaveBeenCalledWith('  v2.1.3 (2.1.3) -> bbb');
+  });
+
+  it('calls setFailed when tag fetching fails', async () => {
+    (tags.fetchSemverTags as jest.Mock).mockRejectedValue(
+      new Error('API rate limit exceeded')
+    );
+    setInputs({
+      upstream_owner: 'octocat',
+      upstream_repository: 'hello-world',
+      upstream_token: 'ghp_secret'
+    });
+
+    await run();
+
+    expect(setFailedSpy).toHaveBeenCalledWith('API rate limit exceeded');
+  });
+
   it('resolves without throwing when configured correctly', async () => {
     setInputs({
       upstream_owner: 'octocat',
@@ -166,5 +246,98 @@ describe('run', () => {
       upstream_token: 'ghp_secret'
     });
     await expect(run()).resolves.toBeUndefined();
+  });
+
+  it('fetches SemVer tags from the local repository and logs them', async () => {
+    (tags.fetchLocalSemverTags as jest.Mock).mockResolvedValue([
+      {name: '0.1.0', version: '0.1.0', sha: 'xxx'},
+      {name: 'v0.2.0', version: '0.2.0', sha: 'yyy'}
+    ]);
+    setLocalEnv({repo: 'myorg/myrepo', token: 'local-secret'});
+    setInputs({
+      upstream_owner: 'octocat',
+      upstream_repository: 'hello-world',
+      upstream_token: 'ghp_secret'
+    });
+
+    await run();
+
+    expect(setFailedSpy).not.toHaveBeenCalled();
+    expect(setSecretSpy).toHaveBeenCalledWith('local-secret');
+    expect(tags.fetchLocalSemverTags).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: 'myorg',
+        repository: 'myrepo',
+        token: 'local-secret'
+      })
+    );
+    expect(infoSpy).toHaveBeenCalledWith('Local repository: myorg/myrepo');
+    expect(infoSpy).toHaveBeenCalledWith(
+      'Found 2 SemVer tag(s) in myorg/myrepo'
+    );
+    expect(infoSpy).toHaveBeenCalledWith('  0.1.0 (0.1.0) -> xxx');
+    expect(infoSpy).toHaveBeenCalledWith('  v0.2.0 (0.2.0) -> yyy');
+  });
+
+  it('calls setFailed when GITHUB_REPOSITORY is missing', async () => {
+    setLocalEnv({repo: null, token: 'local-secret'});
+    setInputs({
+      upstream_owner: 'octocat',
+      upstream_repository: 'hello-world',
+      upstream_token: 'ghp_secret'
+    });
+
+    await run();
+
+    expect(setFailedSpy).toHaveBeenCalledTimes(1);
+    expect(setFailedSpy.mock.calls[0][0]).toMatch(/GITHUB_REPOSITORY/);
+  });
+
+  it('calls setFailed when GITHUB_TOKEN is missing', async () => {
+    setLocalEnv({repo: 'myorg/myrepo', token: null});
+    setInputs({
+      upstream_owner: 'octocat',
+      upstream_repository: 'hello-world',
+      upstream_token: 'ghp_secret'
+    });
+
+    await run();
+
+    expect(setFailedSpy).toHaveBeenCalledTimes(1);
+    expect(setFailedSpy.mock.calls[0][0]).toMatch(/GitHub token is required/i);
+  });
+});
+
+describe('getLocalConfig', () => {
+  beforeEach(() => {
+    setLocalEnv();
+  });
+  afterEach(() => {
+    setLocalEnv({repo: null, token: null});
+    setInputs({});
+  });
+
+  it('returns owner, repository and token from environment', () => {
+    setLocalEnv({repo: 'myorg/myrepo', token: 'local-secret'});
+    expect(getLocalConfig()).toEqual({
+      owner: 'myorg',
+      repository: 'myrepo',
+      token: 'local-secret'
+    });
+  });
+
+  it('throws when GITHUB_REPOSITORY is missing', () => {
+    setLocalEnv({repo: null, token: 'local-secret'});
+    expect(() => getLocalConfig()).toThrow(/GITHUB_REPOSITORY/);
+  });
+
+  it('throws when GITHUB_REPOSITORY is malformed', () => {
+    setLocalEnv({repo: 'not-a-slug', token: 'local-secret'});
+    expect(() => getLocalConfig()).toThrow(/owner\/repo/);
+  });
+
+  it('throws when no GitHub token is available', () => {
+    setLocalEnv({repo: 'myorg/myrepo', token: null});
+    expect(() => getLocalConfig()).toThrow(/GitHub token is required/i);
   });
 });

@@ -25,4 +25,4 @@ outputs:
     description: 'Name of the lowest SemVer (MAJOR.MINOR.BUILD) tag present upstream but missing locally, or an empty string when there is no missing tag to replay.'
 runs:
   using: 'node24'
-  main: 'dist/setup/index.js'
+  main: 'dist/index.js'

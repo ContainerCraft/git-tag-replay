@@ -34338,9 +34338,9 @@ function getLocalConfig() {
     if (!owner || !repository) {
         throw new Error(`Environment variable "GITHUB_REPOSITORY" must be in the form "owner/repo", got "${repoSlug}".`);
     }
-    const token = process.env.GITHUB_TOKEN || core.getInput('github_token');
+    const token = process.env.GITHUB_TOKEN || core.getInput('token');
     if (!token) {
-        throw new Error('A GitHub token is required to read tags from the current repository. Set the "GITHUB_TOKEN" environment variable (e.g. `env: GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}`).');
+        throw new Error('A GitHub token is required to read tags from the current repository.');
     }
     return { owner, repository, token };
 }

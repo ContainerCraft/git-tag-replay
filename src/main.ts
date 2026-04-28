@@ -147,7 +147,7 @@ export async function run() {
       core.info(
         `Lowest missing SemVer tag: ${nextTag.name} (${nextTag.version}) -> ${nextTag.sha}`
       );
-      core.setOutput('nextTag', nextTag.name);
+      core.setOutput('nextTag', nextTag.version);
     } else {
       core.info('No missing upstream SemVer tags to replay');
       core.setOutput('nextTag', '');

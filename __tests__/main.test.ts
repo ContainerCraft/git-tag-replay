@@ -1,6 +1,16 @@
 import * as core from '@actions/core';
-import {getConfig, getLocalConfig, run} from '../src/main';
+import { context } from '@actions/github';
+import { getConfig, getLocalConfig, run } from '../src/main';
 import * as tags from '../src/tags';
+
+jest.mock('@actions/github', () => ({
+  context: {
+    repo: {
+      owner: 'local-owner',
+      repo: 'local-repo'
+    }
+  }
+}));
 
 jest.mock('../src/tags', () => ({
   fetchSemverTags: jest.fn(),
@@ -16,7 +26,8 @@ const INPUT_KEYS = [
   'INPUT_UPSTREAM_TOKEN',
   'INPUT_UPSTREAM_APP_ID',
   'INPUT_UPSTREAM_PRIVATE_KEY',
-  'INPUT_UPSTREAM_INSTALLATION_ID'
+  'INPUT_UPSTREAM_INSTALLATION_ID',
+  'INPUT_MINIMUM_VERSION'
 ];
 
 function setInputs(inputs: Record<string, string | undefined>): void {
@@ -31,12 +42,15 @@ function setInputs(inputs: Record<string, string | undefined>): void {
 }
 
 function setLocalEnv(
-  env: {repo?: string | null; token?: string | null} = {}
+  env: { repo?: string | null; token?: string | null } = {}
 ): void {
   if (env.repo === null) {
-    delete process.env.GITHUB_REPOSITORY;
+    (context as any).repo = {owner: undefined, repo: undefined};
+  } else if (env.repo) {
+    const [owner, repo] = env.repo.split('/');
+    (context as any).repo = {owner, repo};
   } else {
-    process.env.GITHUB_REPOSITORY = env.repo ?? 'local-owner/local-repo';
+    (context as any).repo = {owner: 'local-owner', repo: 'local-repo'};
   }
   if (env.token === null) {
     delete process.env.GITHUB_TOKEN;
@@ -58,7 +72,8 @@ describe('getConfig', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret'
+      upstream_token: 'ghp_secret',
+      minimum_version: '1.0.0',
     });
 
     const config = getConfig();
@@ -74,7 +89,8 @@ describe('getConfig', () => {
       upstream_repository: 'hello-world',
       upstream_app_id: '12345',
       upstream_private_key: '-----BEGIN KEY-----',
-      upstream_installation_id: '67890'
+      upstream_installation_id: '67890',
+      minimum_version: '1.0.0',
     });
 
     const config = getConfig();
@@ -98,8 +114,13 @@ describe('getConfig', () => {
   });
 
   it('throws when no authentication input is provided', () => {
-    setInputs({upstream_owner: 'octocat', upstream_repository: 'hello-world'});
+    setInputs({upstream_owner: 'octocat', upstream_repository: 'hello-world', minimum_version: '1.0.0'});
     expect(() => getConfig()).toThrow(/authentication is required/i);
+  });
+
+  it('throws when no mimimum_version input is provided', () => {
+    setInputs({upstream_owner: 'octocat', upstream_repository: 'hello-world'});
+    expect(() => getConfig()).toThrow(/minimum_version/i);
   });
 
   it('throws when both token and app credentials are provided', () => {
@@ -109,7 +130,8 @@ describe('getConfig', () => {
       upstream_token: 'ghp_secret',
       upstream_app_id: '12345',
       upstream_private_key: 'key',
-      upstream_installation_id: '67890'
+      upstream_installation_id: '67890',
+      minimum_version: '1.0.0',
     });
     expect(() => getConfig()).toThrow(/mutually exclusive/i);
   });
@@ -119,7 +141,8 @@ describe('getConfig', () => {
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
       upstream_app_id: '12345',
-      upstream_private_key: 'key'
+      upstream_private_key: 'key',
+      minimum_version: '1.0.0',
     });
     expect(() => getConfig()).toThrow(/incomplete github app/i);
   });
@@ -132,10 +155,14 @@ describe('run', () => {
 
   beforeEach(() => {
     setLocalEnv();
-    infoSpy = jest.spyOn(core, 'info').mockImplementation(() => {});
-    setFailedSpy = jest.spyOn(core, 'setFailed').mockImplementation(() => {});
-    setSecretSpy = jest.spyOn(core, 'setSecret').mockImplementation(() => {});
-    jest.spyOn(core, 'setOutput').mockImplementation(() => {});
+    infoSpy = jest.spyOn(core, 'info').mockImplementation(() => {
+    });
+    setFailedSpy = jest.spyOn(core, 'setFailed').mockImplementation(() => {
+    });
+    setSecretSpy = jest.spyOn(core, 'setSecret').mockImplementation(() => {
+    });
+    jest.spyOn(core, 'setOutput').mockImplementation(() => {
+    });
     (tags.fetchSemverTags as jest.Mock).mockReset();
     (tags.fetchSemverTags as jest.Mock).mockResolvedValue([
       {name: '1.0.0', version: '1.0.0', sha: 'aaa'}
@@ -154,7 +181,8 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret'
+      upstream_token: 'ghp_secret',
+      minimum_version: '1.0.0',
     });
 
     await run();
@@ -173,7 +201,8 @@ describe('run', () => {
       upstream_repository: 'hello-world',
       upstream_app_id: '12345',
       upstream_private_key: 'PRIVATE',
-      upstream_installation_id: '67890'
+      upstream_installation_id: '67890',
+      minimum_version: '1.0.0',
     });
 
     await run();
@@ -186,7 +215,7 @@ describe('run', () => {
   });
 
   it('calls setFailed when configuration is invalid', async () => {
-    setInputs({upstream_owner: 'octocat', upstream_repository: 'hello-world'});
+    setInputs({upstream_owner: 'octocat', upstream_repository: 'hello-world', minimum_version: '1.0.0'});
 
     await run();
 
@@ -204,7 +233,8 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret'
+      upstream_token: 'ghp_secret',
+      minimum_version: '1.0.0',
     });
 
     await run();
@@ -231,7 +261,8 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret'
+      upstream_token: 'ghp_secret',
+      minimum_version: '1.0.0',
     });
 
     await run();
@@ -257,7 +288,8 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret'
+      upstream_token: 'ghp_secret',
+      minimum_version: '1.0.0',
     });
 
     await run();
@@ -279,18 +311,19 @@ describe('run', () => {
     expect(infoSpy).toHaveBeenCalledWith('  v0.2.0 (0.2.0) -> yyy');
   });
 
-  it('calls setFailed when GITHUB_REPOSITORY is missing', async () => {
+  it('calls setFailed when GitHub owner or repository is missing', async () => {
     setLocalEnv({repo: null, token: 'local-secret'});
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret'
+      upstream_token: 'ghp_secret',
+      minimum_version: '1.0.0',
     });
 
     await run();
 
     expect(setFailedSpy).toHaveBeenCalledTimes(1);
-    expect(setFailedSpy.mock.calls[0][0]).toMatch(/GITHUB_REPOSITORY/);
+    expect(setFailedSpy.mock.calls[0][0]).toMatch(/owner|repository/i);
   });
 
   it('calls setFailed when GITHUB_TOKEN is missing', async () => {
@@ -298,7 +331,8 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret'
+      upstream_token: 'ghp_secret',
+      minimum_version: '1.0.0',
     });
 
     await run();
@@ -326,14 +360,9 @@ describe('getLocalConfig', () => {
     });
   });
 
-  it('throws when GITHUB_REPOSITORY is missing', () => {
+  it('throws when GitHub owner or repository is missing from context', () => {
     setLocalEnv({repo: null, token: 'local-secret'});
-    expect(() => getLocalConfig()).toThrow(/GITHUB_REPOSITORY/);
-  });
-
-  it('throws when GITHUB_REPOSITORY is malformed', () => {
-    setLocalEnv({repo: 'not-a-slug', token: 'local-secret'});
-    expect(() => getLocalConfig()).toThrow(/owner\/repo/);
+    expect(() => getLocalConfig()).toThrow(/owner|repository/i);
   });
 
   it('throws when no GitHub token is available', () => {

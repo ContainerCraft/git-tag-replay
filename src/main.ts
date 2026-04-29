@@ -1,4 +1,5 @@
 import * as core from '@actions/core';
+import {context} from '@actions/github';
 import {compare} from 'semver';
 import {fetchLocalSemverTags, fetchSemverTags} from './tags';
 
@@ -26,22 +27,17 @@ export interface LocalConfig {
 export interface ActionConfig {
   upstream: UpstreamConfig;
   local: LocalConfig;
+  minimumVersion?: string;
 }
 
 export function getLocalConfig(): LocalConfig {
-  const repoSlug = process.env.GITHUB_REPOSITORY;
-  if (!repoSlug) {
-    throw new Error(
-      'Environment variable "GITHUB_REPOSITORY" is required to identify the current repository.'
-    );
-  }
-  const [owner, repository] = repoSlug.split('/');
+  const {owner, repo: repository} = context.repo;
   if (!owner || !repository) {
     throw new Error(
-      `Environment variable "GITHUB_REPOSITORY" must be in the form "owner/repo", got "${repoSlug}".`
+      'GitHub owner and repository are required to identify the current repository.'
     );
   }
-  const token = process.env.GITHUB_TOKEN || core.getInput('token');
+  const token = core.getInput('token') || process.env.GITHUB_TOKEN;
   if (!token) {
     throw new Error(
       'A GitHub token is required to read tags from the current repository.'
@@ -59,6 +55,12 @@ export function getConfig(): ActionConfig {
   }
   if (!repository) {
     throw new Error('Input "upstream_repository" is required');
+  }
+
+  const minimumVersion = core.getInput('minimum_version', {required: true});
+
+  if (!minimumVersion) {
+    throw new Error('Input "minimum_version" is required');
   }
 
   const token = core.getInput('upstream_token');
@@ -99,7 +101,7 @@ export function getConfig(): ActionConfig {
         installationId
       };
 
-  return {upstream: {owner, repository, auth}, local: getLocalConfig()};
+  return {upstream: {owner, repository, auth}, local: getLocalConfig(), minimumVersion: minimumVersion};
 }
 
 export async function run() {

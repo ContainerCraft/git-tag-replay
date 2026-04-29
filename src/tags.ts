@@ -1,6 +1,6 @@
 import * as github from '@actions/github';
 import {createAppAuth} from '@octokit/auth-app';
-import {valid} from 'semver';
+import {parse, SemVer} from 'semver';
 import {LocalConfig, UpstreamConfig} from './main';
 
 export interface SemverTag {
@@ -22,12 +22,8 @@ export interface RepoRef {
 const SEMVER_REGEX = /^v?(\d+)\.(\d+)\.(\d+)$/;
 
 export function isSemverTag(name: string): boolean {
-  const match = SEMVER_REGEX.exec(name);
-  if (!match) {
-    return false;
-  }
-  // Double-check with semver for a canonical validity signal.
-  return valid(`${match[1]}.${match[2]}.${match[3]}`) !== null;
+  let version: SemVer | null = parse(name);
+  return version?.prerelease.length === 0 && version?.build.length === 0;
 }
 
 export function createOctokit(

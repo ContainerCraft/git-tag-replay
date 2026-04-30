@@ -15,6 +15,9 @@ export function calculate(upstreamVersions: SemVer[], localVersions: SemVer[], b
     leftOver = leftOver.filter(makeReleaseBranchFilter(versionParts[0], versionParts[1]));
   }
 
+  // Sort what is left over low to high
+  leftOver.sort((a, b) => a.compare(b));
+
   return leftOver[0]
 }
 

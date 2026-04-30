@@ -34425,7 +34425,6 @@ function run() {
                 ? upstream.auth.token
                 : upstream.auth.privateKey);
             core.setSecret(local.token);
-            core.info('Git Tag Replay Action called');
             core.info(`Upstream repository: ${upstream.owner}/${upstream.repository} (auth: ${upstream.auth.type})`);
             const tags = yield (0, tags_1.fetchSemverTags)(upstream);
             core.info(`Found ${tags.length} SemVer tag(s) in ${upstream.owner}/${upstream.repository}`);
@@ -34438,6 +34437,8 @@ function run() {
             for (const tag of localTags) {
                 core.info(`  ${tag.version}`);
             }
+            core.info(`Ref: ${process.env.GITHUB_REF || ""}`);
+            core.info(`Minimum version: ${minimumVersion}`);
             const nextTag = (0, calculate_1.calculate)(tags, localTags, process.env.GITHUB_REF || "", (0, versions_1.makeVersion)(minimumVersion || "0.0.0"));
             if (nextTag) {
                 core.info(`Lowest missing SemVer tag: ${nextTag.version}`);

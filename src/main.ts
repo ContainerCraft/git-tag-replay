@@ -116,7 +116,6 @@ export async function run() {
         : upstream.auth.privateKey
     );
     core.setSecret(local.token);
-    core.info('Git Tag Replay Action called');
     core.info(
       `Upstream repository: ${upstream.owner}/${upstream.repository} (auth: ${upstream.auth.type})`
     );
@@ -137,6 +136,8 @@ export async function run() {
     for (const tag of localTags) {
       core.info(`  ${tag.version}`);
     }
+    core.info(`Ref: ${process.env.GITHUB_REF || ""}`)
+    core.info(`Minimum version: ${minimumVersion}`)
 
     const nextTag = calculate(tags, localTags, process.env.GITHUB_REF || "", makeVersion(minimumVersion||"0.0.0") );
     if (nextTag) {

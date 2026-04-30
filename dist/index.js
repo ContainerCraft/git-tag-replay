@@ -34437,9 +34437,9 @@ function run() {
             for (const tag of localTags) {
                 core.info(`  ${tag.version}`);
             }
-            core.info(`Ref: ${process.env.GITHUB_REF || ""}`);
+            core.info(`Ref: ${process.env.GITHUB_REF_NAME || ""}`);
             core.info(`Minimum version: ${minimumVersion}`);
-            const nextTag = (0, calculate_1.calculate)(tags, localTags, process.env.GITHUB_REF || "", (0, versions_1.makeVersion)(minimumVersion || "0.0.0"));
+            const nextTag = (0, calculate_1.calculate)(tags, localTags, process.env.GITHUB_REF_NAME || "", (0, versions_1.makeVersion)(minimumVersion || "0.0.0"));
             if (nextTag) {
                 core.info(`Lowest missing SemVer tag: ${nextTag.version}`);
                 core.setOutput('nextTag', nextTag.version);

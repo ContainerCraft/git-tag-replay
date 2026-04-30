@@ -136,10 +136,10 @@ export async function run() {
     for (const tag of localTags) {
       core.info(`  ${tag.version}`);
     }
-    core.info(`Ref: ${process.env.GITHUB_REF || ""}`)
+    core.info(`Ref: ${process.env.GITHUB_REF_NAME || ""}`)
     core.info(`Minimum version: ${minimumVersion}`)
 
-    const nextTag = calculate(tags, localTags, process.env.GITHUB_REF || "", makeVersion(minimumVersion||"0.0.0") );
+    const nextTag = calculate(tags, localTags, process.env.GITHUB_REF_NAME || "", makeVersion(minimumVersion||"0.0.0") );
     if (nextTag) {
       core.info(
         `Lowest missing SemVer tag: ${nextTag.version}`

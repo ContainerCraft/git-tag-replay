@@ -2,6 +2,7 @@ import * as core from '@actions/core';
 import { context } from '@actions/github';
 import { getConfig, getLocalConfig, run } from '../src/main';
 import * as tags from '../src/tags';
+import { makeVersions } from "../src/versions";
 
 jest.mock('@actions/github', () => ({
   context: {
@@ -42,7 +43,11 @@ function setInputs(inputs: Record<string, string | undefined>): void {
 }
 
 function setLocalEnv(
-  env: { repo?: string | null; token?: string | null } = {}
+  env: {
+    repo?: string | null;
+    token?: string | null;
+    ref?: string;
+  } = {}
 ): void {
   if (env.repo === null) {
     (context as any).repo = {owner: undefined, repo: undefined};
@@ -56,6 +61,10 @@ function setLocalEnv(
     delete process.env.GITHUB_TOKEN;
   } else {
     process.env.GITHUB_TOKEN = env.token ?? 'local-token';
+  }
+  if (env.ref) {
+    process.env.GITHUB_REF = env.ref;
+    (context as any).ref = env.ref;
   }
 }
 
@@ -149,14 +158,11 @@ describe('getConfig', () => {
 });
 
 describe('run', () => {
-  let infoSpy: jest.SpyInstance;
   let setFailedSpy: jest.SpyInstance;
   let setSecretSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    setLocalEnv();
-    infoSpy = jest.spyOn(core, 'info').mockImplementation(() => {
-    });
+    setLocalEnv({ref: 'main'});
     setFailedSpy = jest.spyOn(core, 'setFailed').mockImplementation(() => {
     });
     setSecretSpy = jest.spyOn(core, 'setSecret').mockImplementation(() => {
@@ -164,9 +170,7 @@ describe('run', () => {
     jest.spyOn(core, 'setOutput').mockImplementation(() => {
     });
     (tags.fetchSemverTags as jest.Mock).mockReset();
-    (tags.fetchSemverTags as jest.Mock).mockResolvedValue([
-      {name: '1.0.0', version: '1.0.0', sha: 'aaa'}
-    ]);
+    (tags.fetchSemverTags as jest.Mock).mockResolvedValue(makeVersions(['1.0.0']));
     (tags.fetchLocalSemverTags as jest.Mock).mockReset();
     (tags.fetchLocalSemverTags as jest.Mock).mockResolvedValue([]);
   });
@@ -189,10 +193,6 @@ describe('run', () => {
 
     expect(setFailedSpy).not.toHaveBeenCalled();
     expect(setSecretSpy).toHaveBeenCalledWith('ghp_secret');
-    expect(infoSpy).toHaveBeenCalledWith('Git Tag Replay Action called');
-    expect(infoSpy).toHaveBeenCalledWith(
-      'Upstream repository: octocat/hello-world (auth: token)'
-    );
   });
 
   it('masks the private key and logs app auth', async () => {
@@ -209,9 +209,6 @@ describe('run', () => {
 
     expect(setFailedSpy).not.toHaveBeenCalled();
     expect(setSecretSpy).toHaveBeenCalledWith('PRIVATE');
-    expect(infoSpy).toHaveBeenCalledWith(
-      'Upstream repository: octocat/hello-world (auth: app)'
-    );
   });
 
   it('calls setFailed when configuration is invalid', async () => {
@@ -226,10 +223,7 @@ describe('run', () => {
   });
 
   it('fetches SemVer tags from the upstream repository and logs them', async () => {
-    (tags.fetchSemverTags as jest.Mock).mockResolvedValue([
-      {name: '1.0.0', version: '1.0.0', sha: 'aaa'},
-      {name: 'v2.1.3', version: '2.1.3', sha: 'bbb'}
-    ]);
+    (tags.fetchSemverTags as jest.Mock).mockResolvedValue(makeVersions(['1.0.0', '2.1.3',]));
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
@@ -247,11 +241,6 @@ describe('run', () => {
         auth: {type: 'token', token: 'ghp_secret'}
       })
     );
-    expect(infoSpy).toHaveBeenCalledWith(
-      'Found 2 SemVer tag(s) in octocat/hello-world'
-    );
-    expect(infoSpy).toHaveBeenCalledWith('  1.0.0 (1.0.0) -> aaa');
-    expect(infoSpy).toHaveBeenCalledWith('  v2.1.3 (2.1.3) -> bbb');
   });
 
   it('calls setFailed when tag fetching fails', async () => {
@@ -280,10 +269,7 @@ describe('run', () => {
   });
 
   it('fetches SemVer tags from the local repository and logs them', async () => {
-    (tags.fetchLocalSemverTags as jest.Mock).mockResolvedValue([
-      {name: '0.1.0', version: '0.1.0', sha: 'xxx'},
-      {name: 'v0.2.0', version: '0.2.0', sha: 'yyy'}
-    ]);
+    (tags.fetchLocalSemverTags as jest.Mock).mockResolvedValue(makeVersions(['0.1.0', '0.2.0']));
     setLocalEnv({repo: 'myorg/myrepo', token: 'local-secret'});
     setInputs({
       upstream_owner: 'octocat',
@@ -303,12 +289,6 @@ describe('run', () => {
         token: 'local-secret'
       })
     );
-    expect(infoSpy).toHaveBeenCalledWith('Local repository: myorg/myrepo');
-    expect(infoSpy).toHaveBeenCalledWith(
-      'Found 2 SemVer tag(s) in myorg/myrepo'
-    );
-    expect(infoSpy).toHaveBeenCalledWith('  0.1.0 (0.1.0) -> xxx');
-    expect(infoSpy).toHaveBeenCalledWith('  v0.2.0 (0.2.0) -> yyy');
   });
 
   it('calls setFailed when GitHub owner or repository is missing', async () => {

@@ -2,24 +2,12 @@ import * as github from '@actions/github';
 import {createAppAuth} from '@octokit/auth-app';
 import {parse, SemVer} from 'semver';
 import {LocalConfig, UpstreamConfig} from './main';
-
-export interface SemverTag {
-  name: string;
-  version: string;
-  sha: string;
-}
+import {makeVersion} from "./versions";
 
 export interface RepoRef {
   owner: string;
   repository: string;
 }
-
-/**
- * A strict MAJOR.MINOR.BUILD (a.k.a. MAJOR.MINOR.PATCH) SemVer matcher.
- * Accepts an optional leading `v` prefix (e.g. `v1.2.3`) but rejects
- * pre-release or build metadata suffixes.
- */
-const SEMVER_REGEX = /^v?(\d+)\.(\d+)\.(\d+)$/;
 
 export function isSemverTag(name: string): boolean {
   let version: SemVer | null = parse(name);
@@ -55,7 +43,7 @@ export function createLocalOctokit(
 export async function fetchSemverTags(
   upstream: UpstreamConfig,
   octokit: ReturnType<typeof github.getOctokit> = createOctokit(upstream)
-): Promise<SemverTag[]> {
+): Promise<SemVer[]> {
   return fetchSemverTagsFromRepo(
     {owner: upstream.owner, repository: upstream.repository},
     octokit
@@ -69,7 +57,7 @@ export async function fetchSemverTags(
 export async function fetchLocalSemverTags(
   local: LocalConfig,
   octokit: ReturnType<typeof github.getOctokit> = createLocalOctokit(local)
-): Promise<SemverTag[]> {
+): Promise<SemVer[]> {
   return fetchSemverTagsFromRepo(
     {owner: local.owner, repository: local.repository},
     octokit
@@ -79,28 +67,24 @@ export async function fetchLocalSemverTags(
 async function fetchSemverTagsFromRepo(
   repo: RepoRef,
   octokit: ReturnType<typeof github.getOctokit>
-): Promise<SemverTag[]> {
+): Promise<SemVer[]> {
   const iterator = octokit.paginate.iterator(octokit.rest.repos.listTags, {
     owner: repo.owner,
     repo: repo.repository,
     per_page: 100
   });
 
-  const result: SemverTag[] = [];
+  const result: SemVer[] = [];
   for await (const {data} of iterator) {
     for (const tag of data) {
       if (!isSemverTag(tag.name)) {
         continue;
       }
-      const match = SEMVER_REGEX.exec(tag.name);
+      const match = makeVersion(tag.name);
       if (!match) {
         continue;
       }
-      result.push({
-        name: tag.name,
-        version: `${match[1]}.${match[2]}.${match[3]}`,
-        sha: tag.commit.sha
-      });
+      result.push(match);
     }
   }
   return result;

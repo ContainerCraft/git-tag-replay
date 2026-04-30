@@ -34275,6 +34275,41 @@ module.exports = {
 
 /***/ }),
 
+/***/ 5235:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.calculate = calculate;
+const semver_1 = __nccwpck_require__(2088);
+function calculate(upstreamVersions, localVersions, branch, minimumVersion) {
+    // Remove the versions smaller than my required minimumVersion
+    let leftOver = upstreamVersions.filter(v => v.compare(minimumVersion) >= 0);
+    // Remove the versions I already have in my local Git repository
+    leftOver = leftOver.filter(v => localVersions.find(localVersion => (0, semver_1.compare)(v, localVersion) == 0) === undefined);
+    // Filter further based on the branch name
+    if (branch.startsWith('release/')) {
+        const branchVersion = branch.split('/')[1].substring(1); // Result `1` or `1.1`
+        const versionParts = branchVersion.split('.').map(Number);
+        leftOver = leftOver.filter(makeReleaseBranchFilter(versionParts[0], versionParts[1]));
+    }
+    return leftOver[0];
+}
+function makeReleaseBranchFilter(major, minor) {
+    function filter(version) {
+        let result = version.major === major;
+        if (minor !== undefined) {
+            result = result && version.minor === minor;
+        }
+        return result;
+    }
+    return filter;
+}
+
+
+/***/ }),
+
 /***/ 1730:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -34327,18 +34362,16 @@ exports.getLocalConfig = getLocalConfig;
 exports.getConfig = getConfig;
 exports.run = run;
 const core = __importStar(__nccwpck_require__(7484));
-const semver_1 = __nccwpck_require__(2088);
+const github_1 = __nccwpck_require__(3228);
 const tags_1 = __nccwpck_require__(9506);
+const calculate_1 = __nccwpck_require__(5235);
+const versions_1 = __nccwpck_require__(7902);
 function getLocalConfig() {
-    const repoSlug = process.env.GITHUB_REPOSITORY;
-    if (!repoSlug) {
-        throw new Error('Environment variable "GITHUB_REPOSITORY" is required to identify the current repository.');
-    }
-    const [owner, repository] = repoSlug.split('/');
+    const { owner, repo: repository } = github_1.context.repo;
     if (!owner || !repository) {
-        throw new Error(`Environment variable "GITHUB_REPOSITORY" must be in the form "owner/repo", got "${repoSlug}".`);
+        throw new Error('GitHub owner and repository are required to identify the current repository.');
     }
-    const token = process.env.GITHUB_TOKEN || core.getInput('token');
+    const token = core.getInput('token') || process.env.GITHUB_TOKEN;
     if (!token) {
         throw new Error('A GitHub token is required to read tags from the current repository.');
     }
@@ -34352,6 +34385,10 @@ function getConfig() {
     }
     if (!repository) {
         throw new Error('Input "upstream_repository" is required');
+    }
+    const minimumVersion = core.getInput('minimum_version', { required: true });
+    if (!minimumVersion) {
+        throw new Error('Input "minimum_version" is required');
     }
     const token = core.getInput('upstream_token');
     const appId = core.getInput('upstream_app_id');
@@ -34377,13 +34414,13 @@ function getConfig() {
             privateKey,
             installationId
         };
-    return { upstream: { owner, repository, auth }, local: getLocalConfig() };
+    return { upstream: { owner, repository, auth }, local: getLocalConfig(), minimumVersion: minimumVersion };
 }
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const config = getConfig();
-            const { upstream, local } = config;
+            const { upstream, local, minimumVersion } = config;
             core.setSecret(upstream.auth.type === 'token'
                 ? upstream.auth.token
                 : upstream.auth.privateKey);
@@ -34393,21 +34430,17 @@ function run() {
             const tags = yield (0, tags_1.fetchSemverTags)(upstream);
             core.info(`Found ${tags.length} SemVer tag(s) in ${upstream.owner}/${upstream.repository}`);
             for (const tag of tags) {
-                core.info(`  ${tag.name} (${tag.version}) -> ${tag.sha}`);
+                core.info(`  ${tag.version}`);
             }
             core.info(`Local repository: ${local.owner}/${local.repository}`);
             const localTags = yield (0, tags_1.fetchLocalSemverTags)(local);
             core.info(`Found ${localTags.length} SemVer tag(s) in ${local.owner}/${local.repository}`);
             for (const tag of localTags) {
-                core.info(`  ${tag.name} (${tag.version}) -> ${tag.sha}`);
+                core.info(`  ${tag.version}`);
             }
-            const localTagNames = new Set(localTags.map(tag => tag.name));
-            const missingTags = tags.filter(tag => !localTagNames.has(tag.name));
-            core.info(`Found ${missingTags.length} upstream SemVer tag(s) missing locally`);
-            const sortedMissing = [...missingTags].sort((a, b) => (0, semver_1.compare)(a.version, b.version));
-            const nextTag = sortedMissing[0];
+            const nextTag = (0, calculate_1.calculate)(tags, localTags, process.env.GITHUB_REF || "", (0, versions_1.makeVersion)(minimumVersion || "0.0.0"));
             if (nextTag) {
-                core.info(`Lowest missing SemVer tag: ${nextTag.name} (${nextTag.version}) -> ${nextTag.sha}`);
+                core.info(`Lowest missing SemVer tag: ${nextTag.version}`);
                 core.setOutput('nextTag', nextTag.version);
             }
             else {
@@ -34488,19 +34521,10 @@ exports.fetchLocalSemverTags = fetchLocalSemverTags;
 const github = __importStar(__nccwpck_require__(3228));
 const auth_app_1 = __nccwpck_require__(6479);
 const semver_1 = __nccwpck_require__(2088);
-/**
- * A strict MAJOR.MINOR.BUILD (a.k.a. MAJOR.MINOR.PATCH) SemVer matcher.
- * Accepts an optional leading `v` prefix (e.g. `v1.2.3`) but rejects
- * pre-release or build metadata suffixes.
- */
-const SEMVER_REGEX = /^v?(\d+)\.(\d+)\.(\d+)$/;
+const versions_1 = __nccwpck_require__(7902);
 function isSemverTag(name) {
-    const match = SEMVER_REGEX.exec(name);
-    if (!match) {
-        return false;
-    }
-    // Double-check with semver for a canonical validity signal.
-    return (0, semver_1.valid)(`${match[1]}.${match[2]}.${match[3]}`) !== null;
+    let version = (0, semver_1.parse)(name);
+    return (version === null || version === void 0 ? void 0 : version.prerelease.length) === 0 && (version === null || version === void 0 ? void 0 : version.build.length) === 0;
 }
 function createOctokit(upstream) {
     if (upstream.auth.type === 'token') {
@@ -34554,15 +34578,11 @@ function fetchSemverTagsFromRepo(repo, octokit) {
                     if (!isSemverTag(tag.name)) {
                         continue;
                     }
-                    const match = SEMVER_REGEX.exec(tag.name);
+                    const match = (0, versions_1.makeVersion)(tag.name);
                     if (!match) {
                         continue;
                     }
-                    result.push({
-                        name: tag.name,
-                        version: `${match[1]}.${match[2]}.${match[3]}`,
-                        sha: tag.commit.sha
-                    });
+                    result.push(match);
                 }
             }
         }
@@ -34575,6 +34595,25 @@ function fetchSemverTagsFromRepo(repo, octokit) {
         }
         return result;
     });
+}
+
+
+/***/ }),
+
+/***/ 7902:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.makeVersion = makeVersion;
+exports.makeVersions = makeVersions;
+const semver_1 = __nccwpck_require__(2088);
+function makeVersion(version) {
+    return new semver_1.SemVer(version, { loose: false, includePrerelease: false });
+}
+function makeVersions(versions) {
+    return versions.map(v => makeVersion(v));
 }
 
 

@@ -2,6 +2,8 @@ import * as core from '@actions/core';
 import {context} from '@actions/github';
 import {compare} from 'semver';
 import {fetchLocalSemverTags, fetchSemverTags} from './tags';
+import {calculate} from "./calculate";
+import { makeVersion } from "./versions";
 
 export type AuthConfig =
   | {type: 'token'; token: string}
@@ -107,7 +109,7 @@ export function getConfig(): ActionConfig {
 export async function run() {
   try {
     const config = getConfig();
-    const {upstream, local} = config;
+    const {upstream, local, minimumVersion} = config;
     core.setSecret(
       upstream.auth.type === 'token'
         ? upstream.auth.token
@@ -123,7 +125,7 @@ export async function run() {
       `Found ${tags.length} SemVer tag(s) in ${upstream.owner}/${upstream.repository}`
     );
     for (const tag of tags) {
-      core.info(`  ${tag.name} (${tag.version}) -> ${tag.sha}`);
+      core.info(`  ${tag.version}`);
     }
     core.info(
       `Local repository: ${local.owner}/${local.repository}`
@@ -133,21 +135,13 @@ export async function run() {
       `Found ${localTags.length} SemVer tag(s) in ${local.owner}/${local.repository}`
     );
     for (const tag of localTags) {
-      core.info(`  ${tag.name} (${tag.version}) -> ${tag.sha}`);
+      core.info(`  ${tag.version}`);
     }
 
-    const localTagNames = new Set(localTags.map(tag => tag.name));
-    const missingTags = tags.filter(tag => !localTagNames.has(tag.name));
-    core.info(
-      `Found ${missingTags.length} upstream SemVer tag(s) missing locally`
-    );
-    const sortedMissing = [...missingTags].sort((a, b) =>
-      compare(a.version, b.version)
-    );
-    const nextTag = sortedMissing[0];
+    const nextTag = calculate(tags, localTags, process.env.GITHUB_REF || "", makeVersion(minimumVersion||"0.0.0") );
     if (nextTag) {
       core.info(
-        `Lowest missing SemVer tag: ${nextTag.name} (${nextTag.version}) -> ${nextTag.sha}`
+        `Lowest missing SemVer tag: ${nextTag.version}`
       );
       core.setOutput('nextTag', nextTag.version);
     } else {

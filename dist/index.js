@@ -34510,7 +34510,7 @@ function isSemverTag(name) {
     return (version === null || version === void 0 ? void 0 : version.prerelease.length) === 0 && (version === null || version === void 0 ? void 0 : version.build.length) === 0;
 }
 function createOctokit(upstream) {
-    return github.getOctokit('', {
+    return github.getOctokit(undefined, {
         authStrategy: auth_app_1.createAppAuth,
         auth: {
             appId: Number(upstream.auth.clientId),
@@ -34520,7 +34520,7 @@ function createOctokit(upstream) {
     });
 }
 function createLocalOctokit(local) {
-    return github.getOctokit('', {
+    return github.getOctokit(undefined, {
         authStrategy: auth_app_1.createAppAuth,
         auth: {
             appId: Number(local.auth.clientId),

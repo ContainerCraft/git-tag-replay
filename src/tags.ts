@@ -17,7 +17,7 @@ export function isSemverTag(name: string): boolean {
 export function createOctokit(
   upstream: UpstreamConfig
 ): ReturnType<typeof github.getOctokit> {
-  return github.getOctokit('', {
+  return github.getOctokit(undefined as any, {
     authStrategy: createAppAuth,
     auth: {
       appId: Number(upstream.auth.clientId),
@@ -30,7 +30,7 @@ export function createOctokit(
 export function createLocalOctokit(
   local: LocalConfig
 ): ReturnType<typeof github.getOctokit> {
-  return github.getOctokit('', {
+  return github.getOctokit(undefined as any, {
     authStrategy: createAppAuth,
     auth: {
       appId: Number(local.auth.clientId),

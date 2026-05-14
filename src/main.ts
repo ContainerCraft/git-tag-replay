@@ -1,12 +1,11 @@
 import * as core from '@actions/core';
 import {context} from '@actions/github';
-import {compare} from 'semver';
 import {fetchLocalSemverTags, fetchSemverTags} from './tags';
 import {calculate} from "./calculate";
 import { makeVersion } from "./versions";
 
 export interface AuthConfig {
-  appId: string;
+  clientId: string;
   privateKey: string;
   installationId: string;
 }
@@ -62,18 +61,18 @@ export function getConfig(): ActionConfig {
     throw new Error('Input "minimum_version" is required');
   }
 
-  const appId = core.getInput('upstream_app_id', {required: true});
-  const privateKey = core.getInput('upstream_private_key', {required: true});
-  const installationId = core.getInput('upstream_installation_id', {required: true});
+  const clientId = core.getInput('client-id');
+  const privateKey = core.getInput('private-key');
+  const installationId = core.getInput('upstream_installation_id');
 
-  if (!appId || !privateKey || !installationId) {
+  if (!clientId || !privateKey || !installationId) {
     throw new Error(
-      'GitHub App authentication is required: "upstream_app_id", "upstream_private_key" and "upstream_installation_id" must all be provided.'
+      'GitHub App authentication is required: "client-id", "private-key" and "upstream_installation_id" must all be provided.'
     );
   }
 
   const auth: AuthConfig = {
-    appId,
+    clientId,
     privateKey,
     installationId
   };

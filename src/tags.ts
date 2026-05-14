@@ -20,7 +20,7 @@ export function createOctokit(
   return github.getOctokit('', {
     authStrategy: createAppAuth,
     auth: {
-      appId: Number(upstream.auth.appId),
+      appId: Number(upstream.auth.clientId),
       privateKey: upstream.auth.privateKey,
       installationId: Number(upstream.auth.installationId)
     }

@@ -33,7 +33,7 @@ describe('fetchSemverTags', () => {
     owner: 'octocat',
     repository: 'hello-world',
     auth: {
-      appId: '12345',
+      clientId: '12345',
       privateKey: '-----BEGIN KEY-----',
       installationId: '67890'
     }

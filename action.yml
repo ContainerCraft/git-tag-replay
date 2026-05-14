@@ -8,10 +8,10 @@ inputs:
   upstream_repository:
     description: 'Name of the upstream GitHub repository'
     required: true
-  upstream_app_id:
+  client-id:
     description: 'GitHub App ID used to authenticate against the upstream repository.'
     required: true
-  upstream_private_key:
+  private-key:
     description: 'Private key of the GitHub App used to authenticate.'
     required: true
   upstream_installation_id:

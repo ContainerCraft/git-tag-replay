@@ -25,8 +25,8 @@ const INPUT_KEYS = [
   'INPUT_UPSTREAM_OWNER',
   'INPUT_UPSTREAM_REPOSITORY',
   'INPUT_UPSTREAM_TOKEN',
-  'INPUT_UPSTREAM_APP_ID',
-  'INPUT_UPSTREAM_PRIVATE_KEY',
+  'INPUT_CLIENT-ID',
+  'INPUT_PRIVATE-KEY',
   'INPUT_UPSTREAM_INSTALLATION_ID',
   'INPUT_MINIMUM_VERSION'
 ];
@@ -81,8 +81,8 @@ describe('getConfig', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_app_id: '12345',
-      upstream_private_key: '-----BEGIN KEY-----',
+      'client-id': '12345',
+      'private-key': '-----BEGIN KEY-----',
       upstream_installation_id: '67890',
       minimum_version: '1.0.0',
     });
@@ -90,7 +90,7 @@ describe('getConfig', () => {
     const config = getConfig();
 
     expect(config.upstream.auth).toEqual({
-      appId: '12345',
+      clientId: '12345',
       privateKey: '-----BEGIN KEY-----',
       installationId: '67890'
     });
@@ -99,8 +99,8 @@ describe('getConfig', () => {
   it('throws when upstream_owner is missing', () => {
     setInputs({
       upstream_repository: 'hello-world',
-      upstream_app_id: '12345',
-      upstream_private_key: 'key',
+      'client-id': '12345',
+      'private-key': 'key',
       upstream_installation_id: '67890'
     });
     expect(() => getConfig()).toThrow(/upstream_owner/i);
@@ -109,8 +109,8 @@ describe('getConfig', () => {
   it('throws when upstream_repository is missing', () => {
     setInputs({
       upstream_owner: 'octocat',
-      upstream_app_id: '12345',
-      upstream_private_key: 'key',
+      'client-id': '12345',
+      'private-key': 'key',
       upstream_installation_id: '67890'
     });
     expect(() => getConfig()).toThrow(/upstream_repository/i);
@@ -131,8 +131,8 @@ describe('getConfig', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_app_id: '12345',
-      upstream_private_key: 'key',
+      'client-id': '12345',
+      'private-key': 'key',
       minimum_version: '1.0.0',
     });
     expect(() => getConfig()).toThrow(/github app authentication is required/i);
@@ -167,8 +167,8 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_app_id: '12345',
-      upstream_private_key: 'PRIVATE',
+      'client-id': '12345',
+      'private-key': 'PRIVATE',
       upstream_installation_id: '67890',
       minimum_version: '1.0.0',
     });
@@ -195,8 +195,8 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_app_id: '12345',
-      upstream_private_key: 'PRIVATE',
+      'client-id': '12345',
+      'private-key': 'PRIVATE',
       upstream_installation_id: '67890',
       minimum_version: '1.0.0',
     });
@@ -209,7 +209,7 @@ describe('run', () => {
         owner: 'octocat',
         repository: 'hello-world',
         auth: {
-          appId: '12345',
+          clientId: '12345',
           privateKey: 'PRIVATE',
           installationId: '67890'
         }
@@ -224,8 +224,8 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_app_id: '12345',
-      upstream_private_key: 'PRIVATE',
+      'client-id': '12345',
+      'private-key': 'PRIVATE',
       upstream_installation_id: '67890',
       minimum_version: '1.0.0',
     });
@@ -239,8 +239,8 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_app_id: '12345',
-      upstream_private_key: 'PRIVATE',
+      'client-id': '12345',
+      'private-key': 'PRIVATE',
       upstream_installation_id: '67890',
       minimum_version: '1.0.0'
     });
@@ -253,8 +253,8 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_app_id: '12345',
-      upstream_private_key: 'PRIVATE',
+      'client-id': '12345',
+      'private-key': 'PRIVATE',
       upstream_installation_id: '67890',
       minimum_version: '1.0.0',
     });
@@ -277,8 +277,8 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_app_id: '12345',
-      upstream_private_key: 'PRIVATE',
+      'client-id': '12345',
+      'private-key': 'PRIVATE',
       upstream_installation_id: '67890',
       minimum_version: '1.0.0',
     });
@@ -294,8 +294,8 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_app_id: '12345',
-      upstream_private_key: 'PRIVATE',
+      'client-id': '12345',
+      'private-key': 'PRIVATE',
       upstream_installation_id: '67890',
       minimum_version: '1.0.0',
     });

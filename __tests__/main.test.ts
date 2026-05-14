@@ -77,21 +77,6 @@ describe('getConfig', () => {
     setLocalEnv({repo: null, token: null});
   });
 
-  it('returns token-based auth when only token is provided', () => {
-    setInputs({
-      upstream_owner: 'octocat',
-      upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret',
-      minimum_version: '1.0.0',
-    });
-
-    const config = getConfig();
-
-    expect(config.upstream.owner).toBe('octocat');
-    expect(config.upstream.repository).toBe('hello-world');
-    expect(config.upstream.auth).toEqual({type: 'token', token: 'ghp_secret'});
-  });
-
   it('returns app-based auth when all app fields are provided', () => {
     setInputs({
       upstream_owner: 'octocat',
@@ -105,7 +90,6 @@ describe('getConfig', () => {
     const config = getConfig();
 
     expect(config.upstream.auth).toEqual({
-      type: 'app',
       appId: '12345',
       privateKey: '-----BEGIN KEY-----',
       installationId: '67890'
@@ -113,18 +97,28 @@ describe('getConfig', () => {
   });
 
   it('throws when upstream_owner is missing', () => {
-    setInputs({upstream_repository: 'hello-world', upstream_token: 'ghp_secret'});
+    setInputs({
+      upstream_repository: 'hello-world',
+      upstream_app_id: '12345',
+      upstream_private_key: 'key',
+      upstream_installation_id: '67890'
+    });
     expect(() => getConfig()).toThrow(/upstream_owner/i);
   });
 
   it('throws when upstream_repository is missing', () => {
-    setInputs({upstream_owner: 'octocat', upstream_token: 'ghp_secret'});
+    setInputs({
+      upstream_owner: 'octocat',
+      upstream_app_id: '12345',
+      upstream_private_key: 'key',
+      upstream_installation_id: '67890'
+    });
     expect(() => getConfig()).toThrow(/upstream_repository/i);
   });
 
   it('throws when no authentication input is provided', () => {
     setInputs({upstream_owner: 'octocat', upstream_repository: 'hello-world', minimum_version: '1.0.0'});
-    expect(() => getConfig()).toThrow(/authentication is required/i);
+    expect(() => getConfig()).toThrow(/github app authentication is required/i);
   });
 
   it('throws when no mimimum_version input is provided', () => {
@@ -132,18 +126,6 @@ describe('getConfig', () => {
     expect(() => getConfig()).toThrow(/minimum_version/i);
   });
 
-  it('throws when both token and app credentials are provided', () => {
-    setInputs({
-      upstream_owner: 'octocat',
-      upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret',
-      upstream_app_id: '12345',
-      upstream_private_key: 'key',
-      upstream_installation_id: '67890',
-      minimum_version: '1.0.0',
-    });
-    expect(() => getConfig()).toThrow(/mutually exclusive/i);
-  });
 
   it('throws when GitHub App inputs are incomplete', () => {
     setInputs({
@@ -153,7 +135,7 @@ describe('getConfig', () => {
       upstream_private_key: 'key',
       minimum_version: '1.0.0',
     });
-    expect(() => getConfig()).toThrow(/incomplete github app/i);
+    expect(() => getConfig()).toThrow(/github app authentication is required/i);
   });
 });
 
@@ -181,20 +163,6 @@ describe('run', () => {
     setLocalEnv({repo: null, token: null});
   });
 
-  it('logs the expected info message with token auth', async () => {
-    setInputs({
-      upstream_owner: 'octocat',
-      upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret',
-      minimum_version: '1.0.0',
-    });
-
-    await run();
-
-    expect(setFailedSpy).not.toHaveBeenCalled();
-    expect(setSecretSpy).toHaveBeenCalledWith('ghp_secret');
-  });
-
   it('masks the private key and logs app auth', async () => {
     setInputs({
       upstream_owner: 'octocat',
@@ -218,7 +186,7 @@ describe('run', () => {
 
     expect(setFailedSpy).toHaveBeenCalledTimes(1);
     expect(setFailedSpy.mock.calls[0][0]).toMatch(
-      /authentication is required/i
+      /github app authentication is required/i
     );
   });
 
@@ -227,7 +195,9 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret',
+      upstream_app_id: '12345',
+      upstream_private_key: 'PRIVATE',
+      upstream_installation_id: '67890',
       minimum_version: '1.0.0',
     });
 
@@ -238,7 +208,11 @@ describe('run', () => {
       expect.objectContaining({
         owner: 'octocat',
         repository: 'hello-world',
-        auth: {type: 'token', token: 'ghp_secret'}
+        auth: {
+          appId: '12345',
+          privateKey: 'PRIVATE',
+          installationId: '67890'
+        }
       })
     );
   });
@@ -250,7 +224,9 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret',
+      upstream_app_id: '12345',
+      upstream_private_key: 'PRIVATE',
+      upstream_installation_id: '67890',
       minimum_version: '1.0.0',
     });
 
@@ -263,7 +239,10 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret'
+      upstream_app_id: '12345',
+      upstream_private_key: 'PRIVATE',
+      upstream_installation_id: '67890',
+      minimum_version: '1.0.0'
     });
     await expect(run()).resolves.toBeUndefined();
   });
@@ -274,7 +253,9 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret',
+      upstream_app_id: '12345',
+      upstream_private_key: 'PRIVATE',
+      upstream_installation_id: '67890',
       minimum_version: '1.0.0',
     });
 
@@ -296,7 +277,9 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret',
+      upstream_app_id: '12345',
+      upstream_private_key: 'PRIVATE',
+      upstream_installation_id: '67890',
       minimum_version: '1.0.0',
     });
 
@@ -311,7 +294,9 @@ describe('run', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      upstream_token: 'ghp_secret',
+      upstream_app_id: '12345',
+      upstream_private_key: 'PRIVATE',
+      upstream_installation_id: '67890',
       minimum_version: '1.0.0',
     });
 

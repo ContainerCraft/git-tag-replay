@@ -5,14 +5,11 @@ import {fetchLocalSemverTags, fetchSemverTags} from './tags';
 import {calculate} from "./calculate";
 import { makeVersion } from "./versions";
 
-export type AuthConfig =
-  | {type: 'token'; token: string}
-  | {
-      type: 'app';
-      appId: string;
-      privateKey: string;
-      installationId: string;
-    };
+export interface AuthConfig {
+  appId: string;
+  privateKey: string;
+  installationId: string;
+}
 
 export interface UpstreamConfig {
   owner: string;
@@ -65,43 +62,21 @@ export function getConfig(): ActionConfig {
     throw new Error('Input "minimum_version" is required');
   }
 
-  const token = core.getInput('upstream_token');
-  const appId = core.getInput('upstream_app_id');
-  const privateKey = core.getInput('upstream_private_key');
-  const installationId = core.getInput('upstream_installation_id');
+  const appId = core.getInput('upstream_app_id', {required: true});
+  const privateKey = core.getInput('upstream_private_key', {required: true});
+  const installationId = core.getInput('upstream_installation_id', {required: true});
 
-  const hasToken = token.length > 0;
-  const hasAnyAppField =
-    appId.length > 0 || privateKey.length > 0 || installationId.length > 0;
-  const hasAllAppFields =
-    appId.length > 0 && privateKey.length > 0 && installationId.length > 0;
-
-  if (hasToken && hasAnyAppField) {
+  if (!appId || !privateKey || !installationId) {
     throw new Error(
-      'Authentication inputs are mutually exclusive: provide either "upstream_token" or the GitHub App inputs ("upstream_app_id", "upstream_private_key", "upstream_installation_id"), not both.'
+      'GitHub App authentication is required: "upstream_app_id", "upstream_private_key" and "upstream_installation_id" must all be provided.'
     );
   }
 
-  if (!hasToken && !hasAnyAppField) {
-    throw new Error(
-      'Authentication is required: provide either "upstream_token" or all GitHub App inputs ("upstream_app_id", "upstream_private_key", "upstream_installation_id").'
-    );
-  }
-
-  if (hasAnyAppField && !hasAllAppFields) {
-    throw new Error(
-      'Incomplete GitHub App authentication: "upstream_app_id", "upstream_private_key" and "upstream_installation_id" must all be provided together.'
-    );
-  }
-
-  const auth: AuthConfig = hasToken
-    ? {type: 'token', token}
-    : {
-        type: 'app',
-        appId,
-        privateKey,
-        installationId
-      };
+  const auth: AuthConfig = {
+    appId,
+    privateKey,
+    installationId
+  };
 
   return {upstream: {owner, repository, auth}, local: getLocalConfig(), minimumVersion: minimumVersion};
 }
@@ -110,14 +85,10 @@ export async function run() {
   try {
     const config = getConfig();
     const {upstream, local, minimumVersion} = config;
-    core.setSecret(
-      upstream.auth.type === 'token'
-        ? upstream.auth.token
-        : upstream.auth.privateKey
-    );
+    core.setSecret(upstream.auth.privateKey);
     core.setSecret(local.token);
     core.info(
-      `Upstream repository: ${upstream.owner}/${upstream.repository} (auth: ${upstream.auth.type})`
+      `Upstream repository: ${upstream.owner}/${upstream.repository}`
     );
     const tags = await fetchSemverTags(upstream);
     core.info(

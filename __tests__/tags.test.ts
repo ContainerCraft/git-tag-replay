@@ -32,7 +32,11 @@ describe('fetchSemverTags', () => {
   const upstream: UpstreamConfig = {
     owner: 'octocat',
     repository: 'hello-world',
-    auth: {type: 'token', token: 'ghp_secret'}
+    auth: {
+      appId: '12345',
+      privateKey: '-----BEGIN KEY-----',
+      installationId: '67890'
+    }
   };
 
   function mockOctokit(pages: Array<Array<{ name: string; sha: string }>>) {

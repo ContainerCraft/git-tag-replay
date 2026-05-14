@@ -17,9 +17,6 @@ export function isSemverTag(name: string): boolean {
 export function createOctokit(
   upstream: UpstreamConfig
 ): ReturnType<typeof github.getOctokit> {
-  if (upstream.auth.type === 'token') {
-    return github.getOctokit(upstream.auth.token);
-  }
   return github.getOctokit('', {
     authStrategy: createAppAuth,
     auth: {

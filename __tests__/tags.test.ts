@@ -102,7 +102,11 @@ describe('fetchLocalSemverTags', () => {
   const local: LocalConfig = {
     owner: 'myorg',
     repository: 'myrepo',
-    token: 'local-secret'
+    auth: {
+      clientId: '12345',
+      privateKey: '-----BEGIN KEY-----',
+      installationId: '67890'
+    }
   };
 
   function mockOctokit(pages: Array<Array<{ name: string; sha: string }>>) {

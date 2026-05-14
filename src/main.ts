@@ -19,7 +19,7 @@ export interface UpstreamConfig {
 export interface LocalConfig {
   owner: string;
   repository: string;
-  token: string;
+  auth: AuthConfig;
 }
 
 export interface ActionConfig {
@@ -28,20 +28,14 @@ export interface ActionConfig {
   minimumVersion?: string;
 }
 
-export function getLocalConfig(): LocalConfig {
+export function getLocalConfig(auth: AuthConfig): LocalConfig {
   const {owner, repo: repository} = context.repo;
   if (!owner || !repository) {
     throw new Error(
       'GitHub owner and repository are required to identify the current repository.'
     );
   }
-  const token = core.getInput('token') || process.env.GITHUB_TOKEN;
-  if (!token) {
-    throw new Error(
-      'A GitHub token is required to read tags from the current repository.'
-    );
-  }
-  return {owner, repository, token};
+  return {owner, repository, auth};
 }
 
 export function getConfig(): ActionConfig {
@@ -77,7 +71,7 @@ export function getConfig(): ActionConfig {
     installationId
   };
 
-  return {upstream: {owner, repository, auth}, local: getLocalConfig(), minimumVersion: minimumVersion};
+  return {upstream: {owner, repository, auth}, local: getLocalConfig(auth), minimumVersion: minimumVersion};
 }
 
 export async function run() {
@@ -85,7 +79,6 @@ export async function run() {
     const config = getConfig();
     const {upstream, local, minimumVersion} = config;
     core.setSecret(upstream.auth.privateKey);
-    core.setSecret(local.token);
     core.info(
       `Upstream repository: ${upstream.owner}/${upstream.repository}`
     );

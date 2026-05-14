@@ -24,7 +24,6 @@ jest.mock('../src/tags', () => ({
 const INPUT_KEYS = [
   'INPUT_UPSTREAM_OWNER',
   'INPUT_UPSTREAM_REPOSITORY',
-  'INPUT_UPSTREAM_TOKEN',
   'INPUT_CLIENT-ID',
   'INPUT_PRIVATE-KEY',
   'INPUT_UPSTREAM_INSTALLATION_ID',
@@ -45,7 +44,6 @@ function setInputs(inputs: Record<string, string | undefined>): void {
 function setLocalEnv(
   env: {
     repo?: string | null;
-    token?: string | null;
     ref?: string;
   } = {}
 ): void {
@@ -56,11 +54,6 @@ function setLocalEnv(
     (context as any).repo = {owner, repo};
   } else {
     (context as any).repo = {owner: 'local-owner', repo: 'local-repo'};
-  }
-  if (env.token === null) {
-    delete process.env.GITHUB_TOKEN;
-  } else {
-    process.env.GITHUB_TOKEN = env.token ?? 'local-token';
   }
   if (env.ref) {
     process.env.GITHUB_REF = env.ref;
@@ -74,7 +67,7 @@ describe('getConfig', () => {
   });
   afterEach(() => {
     setInputs({});
-    setLocalEnv({repo: null, token: null});
+    setLocalEnv({repo: null});
   });
 
   it('returns app-based auth when all app fields are provided', () => {
@@ -160,7 +153,7 @@ describe('run', () => {
   afterEach(() => {
     jest.restoreAllMocks();
     setInputs({});
-    setLocalEnv({repo: null, token: null});
+    setLocalEnv({repo: null});
   });
 
   it('masks the private key and logs app auth', async () => {
@@ -249,7 +242,7 @@ describe('run', () => {
 
   it('fetches SemVer tags from the local repository and logs them', async () => {
     (tags.fetchLocalSemverTags as jest.Mock).mockResolvedValue(makeVersions(['0.1.0', '0.2.0']));
-    setLocalEnv({repo: 'myorg/myrepo', token: 'local-secret'});
+    setLocalEnv({repo: 'myorg/myrepo'});
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
@@ -262,18 +255,21 @@ describe('run', () => {
     await run();
 
     expect(setFailedSpy).not.toHaveBeenCalled();
-    expect(setSecretSpy).toHaveBeenCalledWith('local-secret');
     expect(tags.fetchLocalSemverTags).toHaveBeenCalledWith(
       expect.objectContaining({
         owner: 'myorg',
         repository: 'myrepo',
-        token: 'local-secret'
+        auth: {
+          clientId: '12345',
+          privateKey: 'PRIVATE',
+          installationId: '67890'
+        }
       })
     );
   });
 
   it('calls setFailed when GitHub owner or repository is missing', async () => {
-    setLocalEnv({repo: null, token: 'local-secret'});
+    setLocalEnv({repo: null});
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
@@ -289,22 +285,6 @@ describe('run', () => {
     expect(setFailedSpy.mock.calls[0][0]).toMatch(/owner|repository/i);
   });
 
-  it('calls setFailed when GITHUB_TOKEN is missing', async () => {
-    setLocalEnv({repo: 'myorg/myrepo', token: null});
-    setInputs({
-      upstream_owner: 'octocat',
-      upstream_repository: 'hello-world',
-      'client-id': '12345',
-      'private-key': 'PRIVATE',
-      upstream_installation_id: '67890',
-      minimum_version: '1.0.0',
-    });
-
-    await run();
-
-    expect(setFailedSpy).toHaveBeenCalledTimes(1);
-    expect(setFailedSpy.mock.calls[0][0]).toMatch(/GitHub token is required/i);
-  });
 });
 
 describe('getLocalConfig', () => {
@@ -312,26 +292,22 @@ describe('getLocalConfig', () => {
     setLocalEnv();
   });
   afterEach(() => {
-    setLocalEnv({repo: null, token: null});
+    setLocalEnv({repo: null});
     setInputs({});
   });
 
-  it('returns owner, repository and token from environment', () => {
-    setLocalEnv({repo: 'myorg/myrepo', token: 'local-secret'});
-    expect(getLocalConfig()).toEqual({
+  it('returns owner, repository and auth from environment and params', () => {
+    setLocalEnv({repo: 'myorg/myrepo'});
+    const auth = { clientId: '123', privateKey: 'pk', installationId: '456' };
+    expect(getLocalConfig(auth)).toEqual({
       owner: 'myorg',
       repository: 'myrepo',
-      token: 'local-secret'
+      auth
     });
   });
 
   it('throws when GitHub owner or repository is missing from context', () => {
-    setLocalEnv({repo: null, token: 'local-secret'});
-    expect(() => getLocalConfig()).toThrow(/owner|repository/i);
-  });
-
-  it('throws when no GitHub token is available', () => {
-    setLocalEnv({repo: 'myorg/myrepo', token: null});
-    expect(() => getLocalConfig()).toThrow(/GitHub token is required/i);
+    setLocalEnv({repo: null});
+    expect(() => getLocalConfig({} as any)).toThrow(/owner|repository/i);
   });
 });

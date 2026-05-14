@@ -30,7 +30,14 @@ export function createOctokit(
 export function createLocalOctokit(
   local: LocalConfig
 ): ReturnType<typeof github.getOctokit> {
-  return github.getOctokit(local.token);
+  return github.getOctokit('', {
+    authStrategy: createAppAuth,
+    auth: {
+      appId: Number(local.auth.clientId),
+      privateKey: local.auth.privateKey,
+      installationId: Number(local.auth.installationId)
+    }
+  });
 }
 
 /**

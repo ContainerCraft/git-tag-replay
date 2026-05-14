@@ -17,9 +17,6 @@ inputs:
   upstream_installation_id:
     description: 'Installation ID of the GitHub App used to authenticate.'
     required: true
-  token:
-    description: 'GitHub token (PAT or GITHUB_TOKEN) used to authenticate against the local repository.'
-    required: true
   minimum_version:
     description: 'Minimum version to consider when replaying tags.'
     required: true

@@ -34368,16 +34368,12 @@ const github_1 = __nccwpck_require__(3228);
 const tags_1 = __nccwpck_require__(9506);
 const calculate_1 = __nccwpck_require__(5235);
 const versions_1 = __nccwpck_require__(7902);
-function getLocalConfig() {
+function getLocalConfig(auth) {
     const { owner, repo: repository } = github_1.context.repo;
     if (!owner || !repository) {
         throw new Error('GitHub owner and repository are required to identify the current repository.');
     }
-    const token = core.getInput('token') || process.env.GITHUB_TOKEN;
-    if (!token) {
-        throw new Error('A GitHub token is required to read tags from the current repository.');
-    }
-    return { owner, repository, token };
+    return { owner, repository, auth };
 }
 function getConfig() {
     const owner = core.getInput('upstream_owner', { required: true });
@@ -34392,42 +34388,26 @@ function getConfig() {
     if (!minimumVersion) {
         throw new Error('Input "minimum_version" is required');
     }
-    const token = core.getInput('upstream_token');
-    const appId = core.getInput('upstream_app_id');
-    const privateKey = core.getInput('upstream_private_key');
+    const clientId = core.getInput('client-id');
+    const privateKey = core.getInput('private-key');
     const installationId = core.getInput('upstream_installation_id');
-    const hasToken = token.length > 0;
-    const hasAnyAppField = appId.length > 0 || privateKey.length > 0 || installationId.length > 0;
-    const hasAllAppFields = appId.length > 0 && privateKey.length > 0 && installationId.length > 0;
-    if (hasToken && hasAnyAppField) {
-        throw new Error('Authentication inputs are mutually exclusive: provide either "upstream_token" or the GitHub App inputs ("upstream_app_id", "upstream_private_key", "upstream_installation_id"), not both.');
+    if (!clientId || !privateKey || !installationId) {
+        throw new Error('GitHub App authentication is required: "client-id", "private-key" and "upstream_installation_id" must all be provided.');
     }
-    if (!hasToken && !hasAnyAppField) {
-        throw new Error('Authentication is required: provide either "upstream_token" or all GitHub App inputs ("upstream_app_id", "upstream_private_key", "upstream_installation_id").');
-    }
-    if (hasAnyAppField && !hasAllAppFields) {
-        throw new Error('Incomplete GitHub App authentication: "upstream_app_id", "upstream_private_key" and "upstream_installation_id" must all be provided together.');
-    }
-    const auth = hasToken
-        ? { type: 'token', token }
-        : {
-            type: 'app',
-            appId,
-            privateKey,
-            installationId
-        };
-    return { upstream: { owner, repository, auth }, local: getLocalConfig(), minimumVersion: minimumVersion };
+    const auth = {
+        clientId,
+        privateKey,
+        installationId
+    };
+    return { upstream: { owner, repository, auth }, local: getLocalConfig(auth), minimumVersion: minimumVersion };
 }
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const config = getConfig();
             const { upstream, local, minimumVersion } = config;
-            core.setSecret(upstream.auth.type === 'token'
-                ? upstream.auth.token
-                : upstream.auth.privateKey);
-            core.setSecret(local.token);
-            core.info(`Upstream repository: ${upstream.owner}/${upstream.repository} (auth: ${upstream.auth.type})`);
+            core.setSecret(upstream.auth.privateKey);
+            core.info(`Upstream repository: ${upstream.owner}/${upstream.repository}`);
             const tags = yield (0, tags_1.fetchSemverTags)(upstream);
             core.info(`Found ${tags.length} SemVer tag(s) in ${upstream.owner}/${upstream.repository}`);
             for (const tag of tags) {
@@ -34530,20 +34510,24 @@ function isSemverTag(name) {
     return (version === null || version === void 0 ? void 0 : version.prerelease.length) === 0 && (version === null || version === void 0 ? void 0 : version.build.length) === 0;
 }
 function createOctokit(upstream) {
-    if (upstream.auth.type === 'token') {
-        return github.getOctokit(upstream.auth.token);
-    }
     return github.getOctokit('', {
         authStrategy: auth_app_1.createAppAuth,
         auth: {
-            appId: Number(upstream.auth.appId),
+            appId: Number(upstream.auth.clientId),
             privateKey: upstream.auth.privateKey,
             installationId: Number(upstream.auth.installationId)
         }
     });
 }
 function createLocalOctokit(local) {
-    return github.getOctokit(local.token);
+    return github.getOctokit('', {
+        authStrategy: auth_app_1.createAppAuth,
+        auth: {
+            appId: Number(local.auth.clientId),
+            privateKey: local.auth.privateKey,
+            installationId: Number(local.auth.installationId)
+        }
+    });
 }
 /**
  * Fetch all tags from the upstream repository that match

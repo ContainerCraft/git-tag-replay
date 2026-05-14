@@ -57,11 +57,11 @@ export function getConfig(): ActionConfig {
 
   const clientId = core.getInput('client-id');
   const privateKey = core.getInput('private-key');
-  const installationId = core.getInput('upstream_installation_id');
+  const installationId = core.getInput('installation-id');
 
   if (!clientId || !privateKey || !installationId) {
     throw new Error(
-      'GitHub App authentication is required: "client-id", "private-key" and "upstream_installation_id" must all be provided.'
+      'GitHub App authentication is required: "client-id", "private-key" and "installation-id" must all be provided.'
     );
   }
 

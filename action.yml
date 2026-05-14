@@ -14,7 +14,7 @@ inputs:
   private-key:
     description: 'Private key of the GitHub App used to authenticate.'
     required: true
-  upstream_installation_id:
+  installation-id:
     description: 'Installation ID of the GitHub App used to authenticate.'
     required: true
   minimum_version:

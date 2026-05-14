@@ -26,7 +26,7 @@ const INPUT_KEYS = [
   'INPUT_UPSTREAM_REPOSITORY',
   'INPUT_CLIENT-ID',
   'INPUT_PRIVATE-KEY',
-  'INPUT_UPSTREAM_INSTALLATION_ID',
+  'INPUT_INSTALLATION-ID',
   'INPUT_MINIMUM_VERSION'
 ];
 
@@ -76,7 +76,7 @@ describe('getConfig', () => {
       upstream_repository: 'hello-world',
       'client-id': '12345',
       'private-key': '-----BEGIN KEY-----',
-      upstream_installation_id: '67890',
+      'installation-id': '67890',
       minimum_version: '1.0.0',
     });
 
@@ -94,7 +94,7 @@ describe('getConfig', () => {
       upstream_repository: 'hello-world',
       'client-id': '12345',
       'private-key': 'key',
-      upstream_installation_id: '67890'
+      'installation-id': '67890'
     });
     expect(() => getConfig()).toThrow(/upstream_owner/i);
   });
@@ -104,7 +104,7 @@ describe('getConfig', () => {
       upstream_owner: 'octocat',
       'client-id': '12345',
       'private-key': 'key',
-      upstream_installation_id: '67890'
+      'installation-id': '67890'
     });
     expect(() => getConfig()).toThrow(/upstream_repository/i);
   });
@@ -162,7 +162,7 @@ describe('run', () => {
       upstream_repository: 'hello-world',
       'client-id': '12345',
       'private-key': 'PRIVATE',
-      upstream_installation_id: '67890',
+      'installation-id': '67890',
       minimum_version: '1.0.0',
     });
 
@@ -190,7 +190,7 @@ describe('run', () => {
       upstream_repository: 'hello-world',
       'client-id': '12345',
       'private-key': 'PRIVATE',
-      upstream_installation_id: '67890',
+      'installation-id': '67890',
       minimum_version: '1.0.0',
     });
 
@@ -219,7 +219,7 @@ describe('run', () => {
       upstream_repository: 'hello-world',
       'client-id': '12345',
       'private-key': 'PRIVATE',
-      upstream_installation_id: '67890',
+      'installation-id': '67890',
       minimum_version: '1.0.0',
     });
 
@@ -234,7 +234,7 @@ describe('run', () => {
       upstream_repository: 'hello-world',
       'client-id': '12345',
       'private-key': 'PRIVATE',
-      upstream_installation_id: '67890',
+      'installation-id': '67890',
       minimum_version: '1.0.0'
     });
     await expect(run()).resolves.toBeUndefined();
@@ -248,7 +248,7 @@ describe('run', () => {
       upstream_repository: 'hello-world',
       'client-id': '12345',
       'private-key': 'PRIVATE',
-      upstream_installation_id: '67890',
+      'installation-id': '67890',
       minimum_version: '1.0.0',
     });
 
@@ -275,7 +275,7 @@ describe('run', () => {
       upstream_repository: 'hello-world',
       'client-id': '12345',
       'private-key': 'PRIVATE',
-      upstream_installation_id: '67890',
+      'installation-id': '67890',
       minimum_version: '1.0.0',
     });
 

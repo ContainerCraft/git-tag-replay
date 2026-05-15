@@ -1,5 +1,13 @@
-jest.mock('@actions/github', () => ({
-  getOctokit: jest.fn()
+jest.mock('@octokit/rest', () => ({
+  Octokit: {
+    plugin: jest.fn().mockReturnValue(class {
+      paginate = { iterator: jest.fn() };
+      rest = { repos: { listTags: jest.fn() } };
+    })
+  }
+}));
+jest.mock('@octokit/plugin-paginate-rest', () => ({
+  paginateRest: jest.fn()
 }));
 jest.mock('@octokit/auth-app', () => ({
   createAppAuth: jest.fn()

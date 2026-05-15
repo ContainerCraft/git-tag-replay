@@ -34446,39 +34446,6 @@ function run() {
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -34501,7 +34468,7 @@ exports.createOctokit = createOctokit;
 exports.createLocalOctokit = createLocalOctokit;
 exports.fetchSemverTags = fetchSemverTags;
 exports.fetchLocalSemverTags = fetchLocalSemverTags;
-const github = __importStar(__nccwpck_require__(3228));
+const rest_1 = __nccwpck_require__(1267);
 const auth_app_1 = __nccwpck_require__(6479);
 const semver_1 = __nccwpck_require__(2088);
 const versions_1 = __nccwpck_require__(7902);
@@ -34510,7 +34477,10 @@ function isSemverTag(name) {
     return (version === null || version === void 0 ? void 0 : version.prerelease.length) === 0 && (version === null || version === void 0 ? void 0 : version.build.length) === 0;
 }
 function createOctokit(upstream) {
-    return github.getOctokit(undefined, {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { paginateRest } = __nccwpck_require__(3779);
+    const MyOctokit = rest_1.Octokit.plugin(paginateRest);
+    return new MyOctokit({
         authStrategy: auth_app_1.createAppAuth,
         auth: {
             appId: Number(upstream.auth.clientId),
@@ -34520,7 +34490,10 @@ function createOctokit(upstream) {
     });
 }
 function createLocalOctokit(local) {
-    return github.getOctokit(undefined, {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { paginateRest } = __nccwpck_require__(3779);
+    const MyOctokit = rest_1.Octokit.plugin(paginateRest);
+    return new MyOctokit({
         authStrategy: auth_app_1.createAppAuth,
         auth: {
             appId: Number(local.auth.clientId),
@@ -41579,6 +41552,74 @@ var request = dist_bundle_withDefaults(endpoint, defaults_default);
 
 /* v8 ignore next -- @preserve */
 /* v8 ignore else -- @preserve */
+
+
+/***/ }),
+
+/***/ 1267:
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
+
+"use strict";
+// ESM COMPAT FLAG
+__nccwpck_require__.r(__webpack_exports__);
+
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  Octokit: () => (/* binding */ Octokit)
+});
+
+// EXTERNAL MODULE: ./node_modules/@octokit/core/dist-src/index.js + 7 modules
+var dist_src = __nccwpck_require__(3070);
+;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-request-log/dist-src/version.js
+const VERSION = "6.0.0";
+
+
+;// CONCATENATED MODULE: ./node_modules/@octokit/plugin-request-log/dist-src/index.js
+
+function requestLog(octokit) {
+  octokit.hook.wrap("request", (request, options) => {
+    octokit.log.debug("request", options);
+    const start = Date.now();
+    const requestOptions = octokit.request.endpoint.parse(options);
+    const path = requestOptions.url.replace(options.baseUrl, "");
+    return request(options).then((response) => {
+      const requestId = response.headers["x-github-request-id"];
+      octokit.log.info(
+        `${requestOptions.method} ${path} - ${response.status} with id ${requestId} in ${Date.now() - start}ms`
+      );
+      return response;
+    }).catch((error) => {
+      const requestId = error.response?.headers["x-github-request-id"] || "UNKNOWN";
+      octokit.log.error(
+        `${requestOptions.method} ${path} - ${error.status} with id ${requestId} in ${Date.now() - start}ms`
+      );
+      throw error;
+    });
+  });
+}
+requestLog.VERSION = VERSION;
+
+
+// EXTERNAL MODULE: ./node_modules/@octokit/plugin-paginate-rest/dist-bundle/index.js
+var dist_bundle = __nccwpck_require__(3779);
+// EXTERNAL MODULE: ./node_modules/@octokit/plugin-rest-endpoint-methods/dist-src/index.js + 3 modules
+var plugin_rest_endpoint_methods_dist_src = __nccwpck_require__(9210);
+;// CONCATENATED MODULE: ./node_modules/@octokit/rest/dist-src/version.js
+const version_VERSION = "22.0.1";
+
+
+;// CONCATENATED MODULE: ./node_modules/@octokit/rest/dist-src/index.js
+
+
+
+
+
+const Octokit = dist_src.Octokit.plugin(requestLog, plugin_rest_endpoint_methods_dist_src.legacyRestEndpointMethods, dist_bundle.paginateRest).defaults(
+  {
+    userAgent: `octokit-rest.js/${version_VERSION}`
+  }
+);
+
 
 
 /***/ }),

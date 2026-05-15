@@ -1,8 +1,15 @@
-import * as github from '@actions/github';
-import {createAppAuth} from '@octokit/auth-app';
-import {parse, SemVer} from 'semver';
-import {LocalConfig, UpstreamConfig} from './main';
-import {makeVersion} from "./versions";
+import { Octokit } from '@octokit/rest';
+import { createAppAuth } from '@octokit/auth-app';
+import { parse, SemVer } from 'semver';
+import { LocalConfig, UpstreamConfig } from './main';
+import { makeVersion } from "./versions";
+
+// Custom type for Octokit with paginate plugin
+export type MyOctokitInstance = Octokit & {
+  paginate: {
+    iterator: (method: any, options: any) => AsyncIterable<{ data: any[] }>;
+  };
+};
 
 export interface RepoRef {
   owner: string;
@@ -16,28 +23,34 @@ export function isSemverTag(name: string): boolean {
 
 export function createOctokit(
   upstream: UpstreamConfig
-): ReturnType<typeof github.getOctokit> {
-  return github.getOctokit(undefined as any, {
+): MyOctokitInstance {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { paginateRest } = require('@octokit/plugin-paginate-rest');
+  const MyOctokit = Octokit.plugin(paginateRest);
+  return new MyOctokit({
     authStrategy: createAppAuth,
     auth: {
       appId: Number(upstream.auth.clientId),
       privateKey: upstream.auth.privateKey,
       installationId: Number(upstream.auth.installationId)
     }
-  });
+  }) as unknown as MyOctokitInstance;
 }
 
 export function createLocalOctokit(
   local: LocalConfig
-): ReturnType<typeof github.getOctokit> {
-  return github.getOctokit(undefined as any, {
+): MyOctokitInstance {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { paginateRest } = require('@octokit/plugin-paginate-rest');
+  const MyOctokit = Octokit.plugin(paginateRest);
+  return new MyOctokit({
     authStrategy: createAppAuth,
     auth: {
       appId: Number(local.auth.clientId),
       privateKey: local.auth.privateKey,
       installationId: Number(local.auth.installationId)
     }
-  });
+  }) as unknown as MyOctokitInstance;
 }
 
 /**
@@ -46,7 +59,7 @@ export function createLocalOctokit(
  */
 export async function fetchSemverTags(
   upstream: UpstreamConfig,
-  octokit: ReturnType<typeof github.getOctokit> = createOctokit(upstream)
+  octokit: MyOctokitInstance = createOctokit(upstream)
 ): Promise<SemVer[]> {
   return fetchSemverTagsFromRepo(
     {owner: upstream.owner, repository: upstream.repository},
@@ -60,7 +73,7 @@ export async function fetchSemverTags(
  */
 export async function fetchLocalSemverTags(
   local: LocalConfig,
-  octokit: ReturnType<typeof github.getOctokit> = createLocalOctokit(local)
+  octokit: MyOctokitInstance = createLocalOctokit(local)
 ): Promise<SemVer[]> {
   return fetchSemverTagsFromRepo(
     {owner: local.owner, repository: local.repository},
@@ -70,7 +83,7 @@ export async function fetchLocalSemverTags(
 
 async function fetchSemverTagsFromRepo(
   repo: RepoRef,
-  octokit: ReturnType<typeof github.getOctokit>
+  octokit: MyOctokitInstance
 ): Promise<SemVer[]> {
   const iterator = octokit.paginate.iterator(octokit.rest.repos.listTags, {
     owner: repo.owner,

@@ -34361,6 +34361,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getLocalConfig = getLocalConfig;
+exports.getUpstreamConfig = getUpstreamConfig;
+exports.getAuthConfig = getAuthConfig;
 exports.getConfig = getConfig;
 exports.run = run;
 const core = __importStar(__nccwpck_require__(7484));
@@ -34368,14 +34370,14 @@ const github_1 = __nccwpck_require__(3228);
 const tags_1 = __nccwpck_require__(9506);
 const calculate_1 = __nccwpck_require__(5235);
 const versions_1 = __nccwpck_require__(7902);
-function getLocalConfig(auth) {
+function getLocalConfig() {
     const { owner, repo: repository } = github_1.context.repo;
     if (!owner || !repository) {
         throw new Error('GitHub owner and repository are required to identify the current repository.');
     }
-    return { owner, repository, auth };
+    return { owner, repository };
 }
-function getConfig() {
+function getUpstreamConfig() {
     const owner = core.getInput('upstream_owner', { required: true });
     const repository = core.getInput('upstream_repository', { required: true });
     if (!owner) {
@@ -34384,37 +34386,42 @@ function getConfig() {
     if (!repository) {
         throw new Error('Input "upstream_repository" is required');
     }
-    const minimumVersion = core.getInput('minimum_version', { required: true });
-    if (!minimumVersion) {
-        throw new Error('Input "minimum_version" is required');
-    }
+    return { owner, repository };
+}
+function getAuthConfig() {
     const clientId = core.getInput('client-id');
     const privateKey = core.getInput('private-key');
     const installationId = core.getInput('installation-id');
     if (!clientId || !privateKey || !installationId) {
         throw new Error('GitHub App authentication is required: "client-id", "private-key" and "installation-id" must all be provided.');
     }
-    const auth = {
+    return {
         clientId,
         privateKey,
         installationId
     };
-    return { upstream: { owner, repository, auth }, local: getLocalConfig(auth), minimumVersion: minimumVersion };
+}
+function getConfig() {
+    const minimumVersion = core.getInput('minimum_version', { required: true });
+    if (!minimumVersion) {
+        throw new Error('Input "minimum_version" is required');
+    }
+    return { upstream: getUpstreamConfig(), local: getLocalConfig(), auth: getAuthConfig(), minimumVersion: minimumVersion };
 }
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const config = getConfig();
-            const { upstream, local, minimumVersion } = config;
-            core.setSecret(upstream.auth.privateKey);
+            const { upstream, local, auth, minimumVersion } = config;
+            core.setSecret(auth.privateKey);
             core.info(`Upstream repository: ${upstream.owner}/${upstream.repository}`);
-            const tags = yield (0, tags_1.fetchSemverTags)(upstream);
+            const tags = yield (0, tags_1.fetchSemverTags)(upstream, auth);
             core.info(`Found ${tags.length} SemVer tag(s) in ${upstream.owner}/${upstream.repository}`);
             for (const tag of tags) {
                 core.info(`  ${tag.version}`);
             }
             core.info(`Local repository: ${local.owner}/${local.repository}`);
-            const localTags = yield (0, tags_1.fetchLocalSemverTags)(local);
+            const localTags = yield (0, tags_1.fetchLocalSemverTags)(local, auth);
             core.info(`Found ${localTags.length} SemVer tag(s) in ${local.owner}/${local.repository}`);
             for (const tag of localTags) {
                 core.info(`  ${tag.version}`);
@@ -34465,40 +34472,25 @@ var __asyncValues = (this && this.__asyncValues) || function (o) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.isSemverTag = isSemverTag;
 exports.createOctokit = createOctokit;
-exports.createLocalOctokit = createLocalOctokit;
 exports.fetchSemverTags = fetchSemverTags;
 exports.fetchLocalSemverTags = fetchLocalSemverTags;
 const rest_1 = __nccwpck_require__(1267);
 const auth_app_1 = __nccwpck_require__(6479);
+const plugin_paginate_rest_1 = __nccwpck_require__(3779);
 const semver_1 = __nccwpck_require__(2088);
 const versions_1 = __nccwpck_require__(7902);
 function isSemverTag(name) {
     let version = (0, semver_1.parse)(name);
     return (version === null || version === void 0 ? void 0 : version.prerelease.length) === 0 && (version === null || version === void 0 ? void 0 : version.build.length) === 0;
 }
-function createOctokit(upstream) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { paginateRest } = __nccwpck_require__(3779);
-    const MyOctokit = rest_1.Octokit.plugin(paginateRest);
+function createOctokit(upstream, auth) {
+    const MyOctokit = rest_1.Octokit.plugin(plugin_paginate_rest_1.paginateRest);
     return new MyOctokit({
         authStrategy: auth_app_1.createAppAuth,
         auth: {
-            appId: Number(upstream.auth.clientId),
-            privateKey: upstream.auth.privateKey,
-            installationId: Number(upstream.auth.installationId)
-        }
-    });
-}
-function createLocalOctokit(local) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { paginateRest } = __nccwpck_require__(3779);
-    const MyOctokit = rest_1.Octokit.plugin(paginateRest);
-    return new MyOctokit({
-        authStrategy: auth_app_1.createAppAuth,
-        auth: {
-            appId: Number(local.auth.clientId),
-            privateKey: local.auth.privateKey,
-            installationId: Number(local.auth.installationId)
+            appId: Number(auth.clientId),
+            privateKey: auth.privateKey,
+            installationId: Number(auth.installationId)
         }
     });
 }
@@ -34506,8 +34498,9 @@ function createLocalOctokit(local) {
  * Fetch all tags from the upstream repository that match
  * strict MAJOR.MINOR.BUILD SemVer semantics.
  */
-function fetchSemverTags(upstream_1) {
-    return __awaiter(this, arguments, void 0, function* (upstream, octokit = createOctokit(upstream)) {
+function fetchSemverTags(upstream, auth) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const octokit = createOctokit(upstream, auth);
         return fetchSemverTagsFromRepo({ owner: upstream.owner, repository: upstream.repository }, octokit);
     });
 }
@@ -34515,8 +34508,9 @@ function fetchSemverTags(upstream_1) {
  * Fetch all tags from the local (current) repository that match
  * strict MAJOR.MINOR.BUILD SemVer semantics.
  */
-function fetchLocalSemverTags(local_1) {
-    return __awaiter(this, arguments, void 0, function* (local, octokit = createLocalOctokit(local)) {
+function fetchLocalSemverTags(local, auth) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const octokit = createOctokit(local, auth);
         return fetchSemverTagsFromRepo({ owner: local.owner, repository: local.repository }, octokit);
     });
 }

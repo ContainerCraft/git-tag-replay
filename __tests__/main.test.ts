@@ -82,7 +82,7 @@ describe('getConfig', () => {
 
     const config = getConfig();
 
-    expect(config.upstream.auth).toEqual({
+    expect(config.auth).toEqual({
       clientId: '12345',
       privateKey: '-----BEGIN KEY-----',
       installationId: '67890'
@@ -92,6 +92,7 @@ describe('getConfig', () => {
   it('throws when upstream_owner is missing', () => {
     setInputs({
       upstream_repository: 'hello-world',
+      minimum_version: '1.0.0',
       'client-id': '12345',
       'private-key': 'key',
       'installation-id': '67890'
@@ -102,6 +103,7 @@ describe('getConfig', () => {
   it('throws when upstream_repository is missing', () => {
     setInputs({
       upstream_owner: 'octocat',
+      minimum_version: '1.0.0',
       'client-id': '12345',
       'private-key': 'key',
       'installation-id': '67890'
@@ -201,11 +203,11 @@ describe('run', () => {
       expect.objectContaining({
         owner: 'octocat',
         repository: 'hello-world',
-        auth: {
-          clientId: '12345',
-          privateKey: 'PRIVATE',
-          installationId: '67890'
-        }
+      }),
+      expect.objectContaining({
+        clientId: '12345',
+        privateKey: 'PRIVATE',
+        installationId: '67890'
       })
     );
   });
@@ -259,11 +261,11 @@ describe('run', () => {
       expect.objectContaining({
         owner: 'myorg',
         repository: 'myrepo',
-        auth: {
-          clientId: '12345',
-          privateKey: 'PRIVATE',
-          installationId: '67890'
-        }
+      }),
+      expect.objectContaining({
+        clientId: '12345',
+        privateKey: 'PRIVATE',
+        installationId: '67890'
       })
     );
   });
@@ -298,16 +300,15 @@ describe('getLocalConfig', () => {
 
   it('returns owner, repository and auth from environment and params', () => {
     setLocalEnv({repo: 'myorg/myrepo'});
-    const auth = { clientId: '123', privateKey: 'pk', installationId: '456' };
-    expect(getLocalConfig(auth)).toEqual({
+    const auth = {clientId: '123', privateKey: 'pk', installationId: '456'};
+    expect(getLocalConfig()).toEqual({
       owner: 'myorg',
       repository: 'myrepo',
-      auth
     });
   });
 
   it('throws when GitHub owner or repository is missing from context', () => {
     setLocalEnv({repo: null});
-    expect(() => getLocalConfig({} as any)).toThrow(/owner|repository/i);
+    expect(() => getLocalConfig()).toThrow(/owner|repository/i);
   });
 });

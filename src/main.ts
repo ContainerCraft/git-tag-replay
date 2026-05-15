@@ -10,35 +10,29 @@ export interface AuthConfig {
   installationId: string;
 }
 
-export interface UpstreamConfig {
+export interface RepositoryConfig {
   owner: string;
   repository: string;
-  auth: AuthConfig;
-}
-
-export interface LocalConfig {
-  owner: string;
-  repository: string;
-  auth: AuthConfig;
 }
 
 export interface ActionConfig {
-  upstream: UpstreamConfig;
-  local: LocalConfig;
+  upstream: RepositoryConfig;
+  local: RepositoryConfig;
+  auth: AuthConfig;
   minimumVersion?: string;
 }
 
-export function getLocalConfig(auth: AuthConfig): LocalConfig {
+export function getLocalConfig(): RepositoryConfig {
   const {owner, repo: repository} = context.repo;
   if (!owner || !repository) {
     throw new Error(
       'GitHub owner and repository are required to identify the current repository.'
     );
   }
-  return {owner, repository, auth};
+  return {owner, repository};
 }
 
-export function getConfig(): ActionConfig {
+export function getUpstreamConfig(): RepositoryConfig {
   const owner = core.getInput('upstream_owner', {required: true});
   const repository = core.getInput('upstream_repository', {required: true});
 
@@ -48,13 +42,10 @@ export function getConfig(): ActionConfig {
   if (!repository) {
     throw new Error('Input "upstream_repository" is required');
   }
+  return {owner, repository};
+}
 
-  const minimumVersion = core.getInput('minimum_version', {required: true});
-
-  if (!minimumVersion) {
-    throw new Error('Input "minimum_version" is required');
-  }
-
+export function getAuthConfig(): AuthConfig {
   const clientId = core.getInput('client-id');
   const privateKey = core.getInput('private-key');
   const installationId = core.getInput('installation-id');
@@ -65,24 +56,33 @@ export function getConfig(): ActionConfig {
     );
   }
 
-  const auth: AuthConfig = {
+  return {
     clientId,
     privateKey,
     installationId
   };
+}
 
-  return {upstream: {owner, repository, auth}, local: getLocalConfig(auth), minimumVersion: minimumVersion};
+export function getConfig(): ActionConfig {
+  const minimumVersion = core.getInput('minimum_version', {required: true});
+
+  if (!minimumVersion) {
+    throw new Error('Input "minimum_version" is required');
+  }
+
+  return {upstream: getUpstreamConfig(), local: getLocalConfig(), auth: getAuthConfig(), minimumVersion: minimumVersion};
 }
 
 export async function run() {
   try {
     const config = getConfig();
-    const {upstream, local, minimumVersion} = config;
-    core.setSecret(upstream.auth.privateKey);
+    const {upstream, local, auth, minimumVersion} = config;
+    core.setSecret(auth.privateKey);
+
     core.info(
       `Upstream repository: ${upstream.owner}/${upstream.repository}`
     );
-    const tags = await fetchSemverTags(upstream);
+    const tags = await fetchSemverTags(upstream, auth);
     core.info(
       `Found ${tags.length} SemVer tag(s) in ${upstream.owner}/${upstream.repository}`
     );
@@ -92,7 +92,7 @@ export async function run() {
     core.info(
       `Local repository: ${local.owner}/${local.repository}`
     );
-    const localTags = await fetchLocalSemverTags(local);
+    const localTags = await fetchLocalSemverTags(local, auth);
     core.info(
       `Found ${localTags.length} SemVer tag(s) in ${local.owner}/${local.repository}`
     );

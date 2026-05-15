@@ -1,11 +1,13 @@
-import { Octokit } from '@octokit/rest';
-import { createAppAuth } from '@octokit/auth-app';
+import { Octokit } from "@octokit/rest";
+import { createAppAuth } from "@octokit/auth-app";
+import { paginateRest } from "@octokit/plugin-paginate-rest";
+
 import { parse, SemVer } from 'semver';
-import { LocalConfig, UpstreamConfig } from './main';
+import { AuthConfig, RepositoryConfig } from './main';
 import { makeVersion } from "./versions";
 
-// Custom type for Octokit with paginate plugin
-export type MyOctokitInstance = Octokit & {
+// Custom type for Octokit with paginate plugin & REST endpoints
+export type OctokitRest = Octokit & {
   paginate: {
     iterator: (method: any, options: any) => AsyncIterable<{ data: any[] }>;
   };
@@ -22,35 +24,18 @@ export function isSemverTag(name: string): boolean {
 }
 
 export function createOctokit(
-  upstream: UpstreamConfig
-): MyOctokitInstance {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { paginateRest } = require('@octokit/plugin-paginate-rest');
+  upstream: RepositoryConfig,
+  auth: AuthConfig,
+): OctokitRest {
   const MyOctokit = Octokit.plugin(paginateRest);
   return new MyOctokit({
     authStrategy: createAppAuth,
     auth: {
-      appId: Number(upstream.auth.clientId),
-      privateKey: upstream.auth.privateKey,
-      installationId: Number(upstream.auth.installationId)
+      appId: Number(auth.clientId),
+      privateKey: auth.privateKey,
+      installationId: Number(auth.installationId)
     }
-  }) as unknown as MyOctokitInstance;
-}
-
-export function createLocalOctokit(
-  local: LocalConfig
-): MyOctokitInstance {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { paginateRest } = require('@octokit/plugin-paginate-rest');
-  const MyOctokit = Octokit.plugin(paginateRest);
-  return new MyOctokit({
-    authStrategy: createAppAuth,
-    auth: {
-      appId: Number(local.auth.clientId),
-      privateKey: local.auth.privateKey,
-      installationId: Number(local.auth.installationId)
-    }
-  }) as unknown as MyOctokitInstance;
+  }) as unknown as OctokitRest;
 }
 
 /**
@@ -58,9 +43,10 @@ export function createLocalOctokit(
  * strict MAJOR.MINOR.BUILD SemVer semantics.
  */
 export async function fetchSemverTags(
-  upstream: UpstreamConfig,
-  octokit: MyOctokitInstance = createOctokit(upstream)
+  upstream: RepositoryConfig,
+  auth: AuthConfig,
 ): Promise<SemVer[]> {
+  const octokit: OctokitRest = createOctokit(upstream, auth)
   return fetchSemverTagsFromRepo(
     {owner: upstream.owner, repository: upstream.repository},
     octokit
@@ -72,9 +58,10 @@ export async function fetchSemverTags(
  * strict MAJOR.MINOR.BUILD SemVer semantics.
  */
 export async function fetchLocalSemverTags(
-  local: LocalConfig,
-  octokit: MyOctokitInstance = createLocalOctokit(local)
+  local: RepositoryConfig,
+  auth: AuthConfig,
 ): Promise<SemVer[]> {
+  const octokit: OctokitRest = createOctokit(local, auth)
   return fetchSemverTagsFromRepo(
     {owner: local.owner, repository: local.repository},
     octokit
@@ -83,7 +70,7 @@ export async function fetchLocalSemverTags(
 
 async function fetchSemverTagsFromRepo(
   repo: RepoRef,
-  octokit: MyOctokitInstance
+  octokit: OctokitRest
 ): Promise<SemVer[]> {
   const iterator = octokit.paginate.iterator(octokit.rest.repos.listTags, {
     owner: repo.owner,

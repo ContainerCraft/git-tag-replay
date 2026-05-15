@@ -1,11 +1,21 @@
-jest.mock('@octokit/rest', () => ({
-  Octokit: {
-    plugin: jest.fn().mockReturnValue(class {
-      paginate = { iterator: jest.fn() };
-      rest = { repos: { listTags: jest.fn() } };
-    })
-  }
-}));
+const mockIterator = jest.fn();
+
+jest.mock('@octokit/rest', () => {
+  return {
+    Octokit: {
+      plugin: jest.fn().mockReturnValue(class {
+        paginate = {
+          iterator: mockIterator
+        };
+        rest = {
+          repos: {
+            listTags: jest.fn()
+          }
+        };
+      })
+    }
+  };
+});
 jest.mock('@octokit/plugin-paginate-rest', () => ({
   paginateRest: jest.fn()
 }));
@@ -15,7 +25,8 @@ jest.mock('@octokit/auth-app', () => ({
 
 import { fetchLocalSemverTags, fetchSemverTags, isSemverTag } from '../src/tags';
 import { makeVersion, makeVersions } from "../src/versions";
-import { LocalConfig, UpstreamConfig } from '../src/main';
+import { AuthConfig, RepositoryConfig } from '../src/main';
+import { Octokit } from '@octokit/rest';
 
 describe('isSemverTag', () => {
   it.each([
@@ -37,14 +48,15 @@ describe('isSemverTag', () => {
 });
 
 describe('fetchSemverTags', () => {
-  const upstream: UpstreamConfig = {
+  const upstream: RepositoryConfig = {
     owner: 'octocat',
     repository: 'hello-world',
-    auth: {
-      clientId: '12345',
-      privateKey: '-----BEGIN KEY-----',
-      installationId: '67890'
-    }
+  };
+
+  const auth: AuthConfig = {
+    clientId: '12345',
+    privateKey: 'key',
+    installationId: '67890'
   };
 
   function mockOctokit(pages: Array<Array<{ name: string; sha: string }>>) {
@@ -75,13 +87,13 @@ describe('fetchSemverTags', () => {
         {name: '4.5.6', sha: 'eee'}
       ]
     ]);
+    mockIterator.mockReturnValue(octokit.paginate.iterator());
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tags = await fetchSemverTags(upstream, octokit as any);
+    const tags = await fetchSemverTags(upstream, auth);
 
     expect(tags).toEqual(makeVersions(['1.0.0', 'v2.1.3', '4.5.6']));
-    expect(octokit.paginate.iterator).toHaveBeenCalledWith(
-      octokit.rest.repos.listTags,
+    expect(mockIterator).toHaveBeenCalledWith(
+      expect.any(Function),
       {owner: 'octocat', repo: 'hello-world', per_page: 100}
     );
   });
@@ -93,28 +105,31 @@ describe('fetchSemverTags', () => {
         {name: '1.2.3-rc.1', sha: 'b'}
       ]
     ]);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tags = await fetchSemverTags(upstream, octokit as any);
+    mockIterator.mockReturnValue(octokit.paginate.iterator());
+
+    const tags = await fetchSemverTags(upstream, auth);
     expect(tags).toEqual([]);
   });
 
   it('returns an empty array when the repository has no tags', async () => {
     const octokit = mockOctokit([[]]);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tags = await fetchSemverTags(upstream, octokit as any);
+    mockIterator.mockReturnValue(octokit.paginate.iterator());
+
+    const tags = await fetchSemverTags(upstream, auth);
     expect(tags).toEqual([]);
   });
 });
 
 describe('fetchLocalSemverTags', () => {
-  const local: LocalConfig = {
+  const local: RepositoryConfig = {
     owner: 'myorg',
     repository: 'myrepo',
-    auth: {
-      clientId: '12345',
-      privateKey: '-----BEGIN KEY-----',
-      installationId: '67890'
-    }
+  };
+
+  const auth: AuthConfig = {
+    clientId: '12345',
+    privateKey: 'key',
+    installationId: '67890'
   };
 
   function mockOctokit(pages: Array<Array<{ name: string; sha: string }>>) {
@@ -141,13 +156,13 @@ describe('fetchLocalSemverTags', () => {
         {name: 'v0.2.0', sha: 'yyy'}
       ]
     ]);
+    mockIterator.mockReturnValue(octokit.paginate.iterator());
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tags = await fetchLocalSemverTags(local, octokit as any);
+    const tags = await fetchLocalSemverTags(local, auth);
 
     expect(tags).toEqual(makeVersions(['0.1.0', 'v0.2.0']));
-    expect(octokit.paginate.iterator).toHaveBeenCalledWith(
-      octokit.rest.repos.listTags,
+    expect(mockIterator).toHaveBeenCalledWith(
+      expect.any(Function),
       {owner: 'myorg', repo: 'myrepo', per_page: 100}
     );
   });

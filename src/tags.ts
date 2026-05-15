@@ -13,11 +13,6 @@ export type OctokitRest = Octokit & {
   };
 };
 
-export interface RepoRef {
-  owner: string;
-  repository: string;
-}
-
 export function isSemverTag(name: string): boolean {
   let version: SemVer | null = parse(name);
   return version?.prerelease.length === 0 && version?.build.length === 0;
@@ -31,7 +26,7 @@ export function createOctokit(
   return new MyOctokit({
     authStrategy: createAppAuth,
     auth: {
-      appId: Number(auth.clientId),
+      appId: auth.clientId,
       privateKey: auth.privateKey,
       installationId: Number(auth.installationId)
     }
@@ -48,7 +43,7 @@ export async function fetchSemverTags(
 ): Promise<SemVer[]> {
   const octokit: OctokitRest = createOctokit(upstream, auth)
   return fetchSemverTagsFromRepo(
-    {owner: upstream.owner, repository: upstream.repository},
+    upstream,
     octokit
   );
 }
@@ -63,13 +58,13 @@ export async function fetchLocalSemverTags(
 ): Promise<SemVer[]> {
   const octokit: OctokitRest = createOctokit(local, auth)
   return fetchSemverTagsFromRepo(
-    {owner: local.owner, repository: local.repository},
+    local,
     octokit
   );
 }
 
 async function fetchSemverTagsFromRepo(
-  repo: RepoRef,
+  repo: RepositoryConfig,
   octokit: OctokitRest
 ): Promise<SemVer[]> {
   const iterator = octokit.paginate.iterator(octokit.rest.repos.listTags, {

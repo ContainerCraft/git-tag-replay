@@ -34488,7 +34488,7 @@ function createOctokit(upstream, auth) {
     return new MyOctokit({
         authStrategy: auth_app_1.createAppAuth,
         auth: {
-            appId: Number(auth.clientId),
+            appId: auth.clientId,
             privateKey: auth.privateKey,
             installationId: Number(auth.installationId)
         }
@@ -34501,7 +34501,7 @@ function createOctokit(upstream, auth) {
 function fetchSemverTags(upstream, auth) {
     return __awaiter(this, void 0, void 0, function* () {
         const octokit = createOctokit(upstream, auth);
-        return fetchSemverTagsFromRepo({ owner: upstream.owner, repository: upstream.repository }, octokit);
+        return fetchSemverTagsFromRepo(upstream, octokit);
     });
 }
 /**
@@ -34511,7 +34511,7 @@ function fetchSemverTags(upstream, auth) {
 function fetchLocalSemverTags(local, auth) {
     return __awaiter(this, void 0, void 0, function* () {
         const octokit = createOctokit(local, auth);
-        return fetchSemverTagsFromRepo({ owner: local.owner, repository: local.repository }, octokit);
+        return fetchSemverTagsFromRepo(local, octokit);
     });
 }
 function fetchSemverTagsFromRepo(repo, octokit) {

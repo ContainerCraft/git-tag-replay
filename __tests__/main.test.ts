@@ -74,7 +74,7 @@ describe('getConfig', () => {
     setInputs({
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
-      'client-id': '12345',
+      'client-id': 'I12345',
       'private-key': '-----BEGIN KEY-----',
       'installation-id': '67890',
       minimum_version: '1.0.0',
@@ -83,7 +83,7 @@ describe('getConfig', () => {
     const config = getConfig();
 
     expect(config.auth).toEqual({
-      clientId: '12345',
+      clientId: 'I12345',
       privateKey: '-----BEGIN KEY-----',
       installationId: '67890'
     });
@@ -93,7 +93,7 @@ describe('getConfig', () => {
     setInputs({
       upstream_repository: 'hello-world',
       minimum_version: '1.0.0',
-      'client-id': '12345',
+      'client-id': '123G45',
       'private-key': 'key',
       'installation-id': '67890'
     });

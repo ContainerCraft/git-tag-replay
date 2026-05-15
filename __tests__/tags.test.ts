@@ -54,7 +54,7 @@ describe('fetchSemverTags', () => {
   };
 
   const auth: AuthConfig = {
-    clientId: '12345',
+    clientId: 'I12345',
     privateKey: 'key',
     installationId: '67890'
   };

@@ -28,7 +28,7 @@ export function createOctokit(
     auth: {
       appId: auth.clientId,
       privateKey: auth.privateKey,
-      installationId: Number(auth.installationId)
+      installationId: auth.installationId
     }
   }) as unknown as OctokitRest;
 }

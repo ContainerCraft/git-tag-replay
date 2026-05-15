@@ -55,6 +55,9 @@ export function getAuthConfig(): AuthConfig {
       'GitHub App authentication is required: "client-id", "private-key" and "installation-id" must all be provided.'
     );
   }
+  if (!privateKey.startsWith('-----BEGIN')) {
+    throw new Error('Input "private-key" must be a PEM-encoded private key');
+  }
 
   return {
     clientId,

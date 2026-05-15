@@ -34395,6 +34395,9 @@ function getAuthConfig() {
     if (!clientId || !privateKey || !installationId) {
         throw new Error('GitHub App authentication is required: "client-id", "private-key" and "installation-id" must all be provided.');
     }
+    if (!privateKey.startsWith('-----BEGIN')) {
+        throw new Error('Input "private-key" must be a PEM-encoded private key');
+    }
     return {
         clientId,
         privateKey,
@@ -34490,7 +34493,7 @@ function createOctokit(upstream, auth) {
         auth: {
             appId: auth.clientId,
             privateKey: auth.privateKey,
-            installationId: Number(auth.installationId)
+            installationId: auth.installationId
         }
     });
 }

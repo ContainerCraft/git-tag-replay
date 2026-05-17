@@ -30,6 +30,8 @@ const INPUT_KEYS = [
   'INPUT_MINIMUM_VERSION'
 ];
 
+const PRIVATE_KEY = '-----BEGIN RSA PRIVATE'
+
 function setInputs(inputs: Record<string, string | undefined>): void {
   for (const key of INPUT_KEYS) {
     delete process.env[key];
@@ -75,7 +77,7 @@ describe('getConfig', () => {
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
       'client-id': 'I12345',
-      'private-key': '-----BEGIN KEY-----',
+      'private-key': PRIVATE_KEY,
       'installation-id': '67890',
       minimum_version: '1.0.0',
     });
@@ -84,7 +86,7 @@ describe('getConfig', () => {
 
     expect(config.auth).toEqual({
       clientId: 'I12345',
-      privateKey: '-----BEGIN KEY-----',
+      privateKey: PRIVATE_KEY,
       installationId: '67890'
     });
   });
@@ -94,7 +96,7 @@ describe('getConfig', () => {
       upstream_repository: 'hello-world',
       minimum_version: '1.0.0',
       'client-id': '123G45',
-      'private-key': 'key',
+      'private-key': PRIVATE_KEY,
       'installation-id': '67890'
     });
     expect(() => getConfig()).toThrow(/upstream_owner/i);
@@ -105,7 +107,7 @@ describe('getConfig', () => {
       upstream_owner: 'octocat',
       minimum_version: '1.0.0',
       'client-id': '12345',
-      'private-key': 'key',
+      'private-key': PRIVATE_KEY,
       'installation-id': '67890'
     });
     expect(() => getConfig()).toThrow(/upstream_repository/i);
@@ -127,7 +129,7 @@ describe('getConfig', () => {
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
       'client-id': '12345',
-      'private-key': 'key',
+      'private-key': PRIVATE_KEY,
       minimum_version: '1.0.0',
     });
     expect(() => getConfig()).toThrow(/github app authentication is required/i);
@@ -163,7 +165,7 @@ describe('run', () => {
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
       'client-id': '12345',
-      'private-key': 'PRIVATE',
+      'private-key': PRIVATE_KEY,
       'installation-id': '67890',
       minimum_version: '1.0.0',
     });
@@ -171,7 +173,7 @@ describe('run', () => {
     await run();
 
     expect(setFailedSpy).not.toHaveBeenCalled();
-    expect(setSecretSpy).toHaveBeenCalledWith('PRIVATE');
+    expect(setSecretSpy).toHaveBeenCalledWith(PRIVATE_KEY);
   });
 
   it('calls setFailed when configuration is invalid', async () => {
@@ -191,7 +193,7 @@ describe('run', () => {
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
       'client-id': '12345',
-      'private-key': 'PRIVATE',
+      'private-key': PRIVATE_KEY,
       'installation-id': '67890',
       minimum_version: '1.0.0',
     });
@@ -206,7 +208,7 @@ describe('run', () => {
       }),
       expect.objectContaining({
         clientId: '12345',
-        privateKey: 'PRIVATE',
+        privateKey: PRIVATE_KEY,
         installationId: '67890'
       })
     );
@@ -220,7 +222,7 @@ describe('run', () => {
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
       'client-id': '12345',
-      'private-key': 'PRIVATE',
+      'private-key': PRIVATE_KEY,
       'installation-id': '67890',
       minimum_version: '1.0.0',
     });
@@ -235,7 +237,7 @@ describe('run', () => {
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
       'client-id': '12345',
-      'private-key': 'PRIVATE',
+      'private-key': PRIVATE_KEY,
       'installation-id': '67890',
       minimum_version: '1.0.0'
     });
@@ -249,7 +251,7 @@ describe('run', () => {
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
       'client-id': '12345',
-      'private-key': 'PRIVATE',
+      'private-key': PRIVATE_KEY,
       'installation-id': '67890',
       minimum_version: '1.0.0',
     });
@@ -264,7 +266,7 @@ describe('run', () => {
       }),
       expect.objectContaining({
         clientId: '12345',
-        privateKey: 'PRIVATE',
+        privateKey: PRIVATE_KEY,
         installationId: '67890'
       })
     );
@@ -276,7 +278,7 @@ describe('run', () => {
       upstream_owner: 'octocat',
       upstream_repository: 'hello-world',
       'client-id': '12345',
-      'private-key': 'PRIVATE',
+      'private-key': PRIVATE_KEY,
       'installation-id': '67890',
       minimum_version: '1.0.0',
     });

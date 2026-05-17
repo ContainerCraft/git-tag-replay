@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test
+      - name: Check Git workspace is clean
+        run: git diff --name-status --exit-code
+      - name: Fail if there are changed files
+        run: |-
+          git status --porcelain
+          if [ -n "$(git status --porcelain)" ]; then echo "::error::Git workspace is not clean"; exit 1; fi
